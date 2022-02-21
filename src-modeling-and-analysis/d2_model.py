@@ -398,11 +398,11 @@ if __name__ == '__main__':
   nn2_layer_sizes = [1, 16, 16, 1]
 
   print_and_log("Loading data...", log_fn)
-  inp_dir = '/cluster/mshen/prj/mmej_figures/out/c2_model_dataset/'
+  inp_dir = './in/'
   # master_data = pickle.load(open(inp_dir + 'dataset_try1.pkl'))
   # master_data = pickle.load(open(inp_dir + 'dataset_try2.pkl'))
   # master_data = pickle.load(open(inp_dir + 'dataset_try3.pkl'))
-  master_data = pickle.load(open(inp_dir + 'dataset_try4.pkl'))
+  master_data = pickle.load(open(inp_dir + 'dataset.pkl'))
 
   '''
   Unpack data from e11_dataset
