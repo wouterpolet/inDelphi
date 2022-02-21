@@ -4,7 +4,7 @@ from __future__ import absolute_import, division
 from __future__ import print_function
 import autograd.numpy as np
 import autograd.numpy.random as npr
-from autograd import multigrad, grad
+from autograd import grad
 from autograd.misc import flatten
 import matplotlib
 from past.builtins import xrange
@@ -372,7 +372,8 @@ def plot_pred_obs(nn_params, nn2_params, inp, obs, del_lens, nms, datatype, lett
 # Setup / Run Main
 ##
 if __name__ == '__main__':
-  out_place = '/cluster/mshen/prj/mmej_figures/out/%s/' % (NAME)
+  # out_place = '/cluster/mshen/prj/mmej_figures/out/%s/' % (NAME)
+  out_place = './out'
   util.ensure_dir_exists(out_place)
   num_folds = count_num_folders(out_place)
   out_letters = alphabetize(num_folds + 1)
@@ -446,7 +447,7 @@ if __name__ == '__main__':
     idx = batch_indices(iter)
     return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
 
-  both_objective_grad = multigrad(objective, argnums=[0,1])
+  both_objective_grad = grad(objective, argnums=[0,1])
 
   def print_perf(nn_params, nn2_params, iter):
     print_and_log(str(iter), log_fn)

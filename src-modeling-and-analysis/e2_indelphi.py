@@ -54,7 +54,7 @@ def calc_statistics(orig_df, exp, rate_model, bp_model, alldf_dict, rs):
   df = df.append(ins_df, ignore_index = True)
   df['Frequency'] = _lib.normalize_frequency(df)
 
-  _predict2.init_model()
+  _predict.init_model()
 
   seq, cutsite = _lib.get_sequence_cutsite(orig_df)
   pred_df = _predict.predict_mhdel(seq, cutsite)
