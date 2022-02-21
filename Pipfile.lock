@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "34f0548571b74d99365834344b076b4af5380d3b9fe4f2ca9cd469dd98cfdab3"
+            "sha256": "3348b0080613f5be25d54a1ec022654ef123a3f1f3a3f4cb7cb274f7c888f397"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.6"
+            "python_version": "3.10"
         },
         "sources": [
             {
@@ -144,13 +144,6 @@
             ],
             "index": "pypi",
             "version": "==3.5.1"
-        },
-        "mylib": {
-            "hashes": [
-                "sha256:0e4f96f4800500ad3a7c9e7cbfe44c36e8535a5360b6fe55478e5e677060824f"
-            ],
-            "index": "pypi",
-            "version": "==0.0.1"
         },
         "numpy": {
             "hashes": [

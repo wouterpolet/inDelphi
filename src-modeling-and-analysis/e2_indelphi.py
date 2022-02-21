@@ -1,5 +1,5 @@
 from __future__ import division
-import _config, _lib, _data, _predict, _predict2
+import _config, _lib, _data, _predict
 import sys, os, datetime, subprocess, math, pickle, imp, fnmatch
 sys.path.append('/cluster/mshen/')
 import numpy as np
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 from scipy.stats import pearsonr, entropy
-import e_ins_modeling
+# import e_ins_modeling
 
 # Default params
 DEFAULT_INP_DIR = None
@@ -57,12 +57,12 @@ def calc_statistics(orig_df, exp, rate_model, bp_model, alldf_dict, rs):
   _predict2.init_model()
 
   seq, cutsite = _lib.get_sequence_cutsite(orig_df)
-  pred_df = _predict2.predict_mhdel(seq, cutsite)
+  pred_df = _predict.predict_mhdel(seq, cutsite)
 
   # Predict rate of 1 bp insertions
     # Featurize first
-  del_score = _predict2.total_deletion_score(seq, cutsite)
-  dlpred = _predict2.deletion_length_distribution(seq, cutsite)
+  del_score = _predict.total_deletion_score(seq, cutsite)
+  dlpred = _predict.deletion_length_distribution(seq, cutsite)
   norm_entropy = entropy(dlpred) / np.log(len(dlpred))
   ohmapper = {'A': [1, 0, 0, 0], 'C': [0, 1, 0, 0], 'G': [0, 0, 1, 0], 'T': [0, 0, 0, 1]}
   fivebase = seq[cutsite - 1]

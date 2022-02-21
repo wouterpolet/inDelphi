@@ -5,8 +5,10 @@ from __future__ import print_function
 import autograd.numpy as np
 import autograd.numpy.random as npr
 from autograd import multigrad, grad
-from autograd.util import flatten
+from autograd.misc import flatten
 import matplotlib
+from past.builtins import xrange
+
 matplotlib.use('Pdf')
 import matplotlib.pyplot as plt
 from collections import defaultdict
