@@ -98,7 +98,7 @@ def construct_align(read, genome, cigar, start):
 # Main: Convert SAM to raw alignment
 ##
 def convert_alignment(srr_id, out_dir):
-  print srr_id
+  print(srr_id)
   if srr_id not in _config.d.RUNS_SET:
     return 'Bad srr_id %s' % (srr_id)
   sam_fn = _config.d.sam_fn(srr_id)
@@ -135,8 +135,8 @@ def convert_alignment(srr_id, out_dir):
       count = align_collection[align]
       f.write('>%s_%s' % (count, align))
 
-  print '%s distant out of %s alignments: %s' % (num_distant, num_aligns, num_distant / num_aligns)
-  print 'Done'
+  print('%s distant out of %s alignments: %s' % (num_distant, num_aligns, num_distant / num_aligns))
+  print('Done')
   return
 
 
@@ -145,7 +145,7 @@ def convert_alignment(srr_id, out_dir):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -168,7 +168,7 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 ##
@@ -176,7 +176,7 @@ def gen_qsubs():
 ##
 @util.time_dec
 def main(inp_dir, out_dir, srr_id = None):
-  print NAME  
+  print(NAME)
   util.ensure_dir_exists(out_dir)
 
   # Function calls

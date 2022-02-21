@@ -60,12 +60,12 @@ def find_control(srr_id):
 
 def load_lib_cas_data(inp_dir, srr_id):
   lib_srr_id = find_control(srr_id)
-  print 'Control srr_id: %s' % (lib_srr_id)
+  print('Control srr_id: %s' % (lib_srr_id))
   if lib_srr_id is False:
     return False, False
 
   if not os.path.isfile(inp_dir + '%s.csv' % (srr_id)):
-    print 'Bad fn %s' % (srr_id)
+    print('Bad fn %s' % (srr_id))
     return False, False
 
   dtypes = {'Category': str, 'Count': float, 'Genotype Position': float, 'Indel with Mismatches': str, 'Ins Fivehomopolymer': str, 'Ins Template Length': float, 'Ins mh2': str, 'Ins p2': str, 'Inserted Bases': str, 'Length': float, 'Microhomology-Based': str, '_ExpDir': str, '_Experiment': str, '_Sequence Context': str, '_Cutsite': int}
@@ -84,7 +84,7 @@ def build_new_cas(lib, cas):
   lib_total = sum(lib['Count'])
   cas_total = sum(cas['Count'])
   if lib_total < 1000 or cas_total == 0:
-    print lib_total
+    print(lib_total)
     return cas
 
   join_cols = list(cas.columns)
@@ -126,7 +126,7 @@ def build_new_cas(lib, cas):
 # Main iterator
 ##
 def control_adjustment(inp_dir, out_dir, srr_id):
-  print srr_id
+  print(srr_id)
   lib, cas = load_lib_cas_data(inp_dir, srr_id)
 
   if lib is False or cas is False:
@@ -143,7 +143,7 @@ def control_adjustment(inp_dir, out_dir, srr_id):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -168,7 +168,7 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 
@@ -186,7 +186,7 @@ def is_control(srr_id):
 ##
 @util.time_dec
 def main(inp_dir, out_dir, srr_id = '', start = 'none', end = 'none'):
-  print NAME  
+  print(NAME)
   util.ensure_dir_exists(out_dir)
 
   # Function calls
@@ -196,7 +196,7 @@ def main(inp_dir, out_dir, srr_id = '', start = 'none', end = 'none'):
 
   if srr_id != '' and start == 'none' and end == 'none':
     if is_control(srr_id):
-      print 'is control'
+      print('is control')
       return
     control_adjustment(inp_dir, out_dir, srr_id)
     return

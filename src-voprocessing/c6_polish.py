@@ -52,9 +52,9 @@ def set_master_expected_cutsite(srr_id):
     master_expected_cutsite = start + 23 - 6
     reverse_flag = False
   else:
-    print 'ERROR: Expected gRNA lacks NGG on both strands'
+    print('ERROR: Expected gRNA lacks NGG on both strands')
     sys.exit(0)
-  print 'Reverse: %s' % (reverse_flag)
+  print('Reverse: %s' % (reverse_flag))
   return
 
 ##
@@ -612,7 +612,7 @@ def remaster_aligns(inp_fn, data):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -637,7 +637,7 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 ##
@@ -647,7 +647,7 @@ def gen_qsubs():
 def main(inp_dir, master_out_dir, srr_id = 'none', start = 'none', end = 'none'):
   # First, ensure output dir is empty
   # Process alignment file, then save.
-  print NAME
+  print(NAME)
   util.ensure_dir_exists(master_out_dir)
 
   # Qsubs
@@ -657,8 +657,8 @@ def main(inp_dir, master_out_dir, srr_id = 'none', start = 'none', end = 'none')
 
   ## Run single
   elif srr_id != 'none' and start == 'none' and end == 'none':
-    print 'Running single...'
-    print srr_id
+    print('Running single...')
+    print(srr_id)
     inp_fn = inp_dir + '%s.txt' % (srr_id)
     out_dir = master_out_dir + srr_id + '/'
     util.ensure_dir_exists(out_dir)
@@ -670,7 +670,7 @@ def main(inp_dir, master_out_dir, srr_id = 'none', start = 'none', end = 'none')
     remaster_aligns(inp_fn, data)
     save_alignments(data, out_dir)
 
-  elif srr_id == 'none' and start is not 'none' and end is not 'none':
+  elif srr_id == 'none' and start != 'none' and end != 'none':
     # Run many
     start, end = int(start), int(end)
     prepare_align_outdirs(master_out_dir, start, end)

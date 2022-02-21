@@ -403,7 +403,10 @@ if __name__ == '__main__':
   # master_data = pickle.load(open(inp_dir + 'dataset_try2.pkl'))
   # master_data = pickle.load(open(inp_dir + 'dataset_try3.pkl'))
   master_data = pickle.load(open(inp_dir + 'dataset.pkl', 'rb'))
+  counts = master_data['counts']
+  del_features = master_data['del_features']
 
+  print(master_data)
   '''
   Unpack data from e11_dataset
   '''
