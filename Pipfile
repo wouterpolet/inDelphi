@@ -4,12 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+numpy = "*"
 autograd = "*"
 matplotlib = "*"
-seaborn = "*"
 sklearn = "*"
+seaborn = "*"
 scipy = "*"
-numpy = "*"
 
 [dev-packages]
 

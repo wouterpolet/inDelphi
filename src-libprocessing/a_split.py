@@ -30,7 +30,7 @@ def split(inp_fn, out_nm):
     split_size += 1
   while split_size % 4 != 0:
     split_size += 1
-  print 'Using split size %s' % (split_size)
+  print('Using split size %s' % (split_size))
 
   split_num = 0
   for idx in range(1, inp_fn_numlines, split_size):
@@ -39,7 +39,7 @@ def split(inp_fn, out_nm):
     out_fn = out_dir + out_nm + '_%s.fq' % (split_num)
     command = 'tail -n +%s %s | head -n %s > %s' % (start, inp_fn, end - start, out_fn)
     split_num += 1
-    print command
+    print(command)
 
   return
 
@@ -49,7 +49,7 @@ def split(inp_fn, out_nm):
 ##
 @util.time_dec
 def main():
-  print NAME  
+  print(NAME)
   
   # Function calls
   for fn in os.listdir(inp_dir):
