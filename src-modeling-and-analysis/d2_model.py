@@ -423,7 +423,7 @@ if __name__ == '__main__':
   mh_lens = deletions['homologyLength'].values
   gc_fracs = deletions['homologyGCContent'].values
   del_lens = deletions['Size'].values
-  freqs = deletions['fraction'].values
+  freqs = deletions['countEvents'].values
   dels_per_len = deletions[deletions['Type'] == 'DELETION'][['Size', 'countEvents']].groupby('Size').apply(sum)['countEvents']
   total_dels = sum(dels_per_len)
   dels_per_len /= total_dels
