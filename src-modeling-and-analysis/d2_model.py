@@ -5,8 +5,9 @@ from __future__ import print_function
 import autograd.numpy as np
 import autograd.numpy.random as npr
 from autograd import grad
-from autograd.misc import flatten
+# from autograd.util import flatten
 import matplotlib
+from autograd.misc import flatten
 from past.builtins import xrange
 
 matplotlib.use('Pdf')
@@ -19,7 +20,7 @@ from matplotlib.colors import Normalize
 from sklearn.metrics import r2_score
 from scipy.stats import pearsonr
 from sklearn.model_selection import train_test_split
-from matplotlib.backends.backend_pdf import PdfPages 
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 NAME = util.get_fn(__file__)
 
@@ -406,11 +407,28 @@ if __name__ == '__main__':
   counts = master_data['counts']
   del_features = master_data['del_features']
 
-  print(master_data)
   '''
   Unpack data from e11_dataset
   '''
-  [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = master_data
+  # expression
+  # Microhomology lengths
+  # GC fractions
+  # deletion lengths
+  # frequencies -> microhomology.
+  # deletion lengths frequencies -> from 1 to 28 (including) list frequency of each deletion freq
+  merged = pd.concat([counts, del_features], axis=1)
+  deletions = merged[merged['Type'] == 'DELETION']
+  deletions = deletions.reset_index()
+  exps = [x.split('_')[-1] for x in deletions['Sample_Name'].values]
+  mh_lens = deletions['homologyLength'].values
+  gc_fracs = deletions['homologyGCContent'].values
+  del_lens = deletions['Size'].values
+  freqs = deletions['countEvents'].values
+  dels_per_len = deletions[deletions['Type'] == 'DELETION'][['Size', 'countEvents']].groupby('Size').apply(sum)['countEvents']
+  total_dels = sum(dels_per_len)
+  dels_per_len /= total_dels
+  dl_freqs = [dels_per_len.loc[x[5]] for x in deletions.values]
+  # [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = master_data
   INP = []
   for mhl, gcf in zip(mh_lens, gc_fracs):
     inp_point = np.array([mhl, gcf]).T   # N * 2
@@ -450,7 +468,9 @@ if __name__ == '__main__':
     idx = batch_indices(iter)
     return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
 
-  both_objective_grad = grad(objective, argnums=[0,1])
+  # both_objective_grad = multigrad(objective, argnums=[0,1])
+  # both_objective_grad = multigrad(objective, argnums=[0,1])
+  both_objective_grad = grad(objective)
 
   def print_perf(nn_params, nn2_params, iter):
     print_and_log(str(iter), log_fn)
