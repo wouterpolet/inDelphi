@@ -392,6 +392,7 @@ def data_parse_new(counts, del_features):
   deletions = deletions.reset_index()
 
   # A single value GRNA
+  # Train until 1871
   exps = deletions['Sample_Name'].unique()[:5]
 
   # Question: How to determine if a deletion is MH or MH-less - length != 0
@@ -400,24 +401,32 @@ def data_parse_new(counts, del_features):
   #              Interate over all different indels to get a vector
 
   microhomologies = deletions[deletions['homologyLength'] != 0]
+
+  # mh_less = deletions[deletions['homologyLength'] == 0]
+
   mh_lens, gc_fracs, del_lens, freqs, dl_freqs = [], [], [], [], []
   for id, exp in enumerate(exps):
-    exp_data = microhomologies[microhomologies['Sample_Name'] == exp][['countEvents', 'homologyLength', 'homologyGCContent', 'Size']]
+    # Microhomology computation
+    mh_exp_data = microhomologies[microhomologies['Sample_Name'] == exp][['countEvents', 'homologyLength', 'homologyGCContent', 'Size']]
 
-    total_count = sum(exp_data['countEvents'])
-    exp_data['countEvents'] = exp_data['countEvents'].div(total_count)
+    total_count = sum(mh_exp_data['countEvents'])
+    mh_exp_data['countEvents'] = mh_exp_data['countEvents'].div(total_count)
 
-    freqs.append(exp_data['countEvents'])
-    mh_lens.append(exp_data['homologyLength'].astype('int32'))
-    gc_fracs.append(exp_data['homologyGCContent'])
-    del_lens.append(exp_data['Size'].astype('int32'))
+    freqs.append(mh_exp_data['countEvents'])
+    mh_lens.append(mh_exp_data['homologyLength'].astype('int32'))
+    gc_fracs.append(mh_exp_data['homologyGCContent'])
+    del_lens.append(mh_exp_data['Size'].astype('int32'))
 
     curr_dl_freqs = []
-    dl_freq_df = exp_data[exp_data['Size'] <= 28]
+    dl_freq_df = mh_exp_data[mh_exp_data['Size'] <= 28]
     for del_len in range(1, 28+1):
       dl_freq = sum(dl_freq_df[dl_freq_df['Size'] == del_len]['countEvents'])
       curr_dl_freqs.append(dl_freq)
     dl_freqs.append(curr_dl_freqs)
+
+    # # Microhomology-less computation
+    # mh_less_exp_data = mh_less[mh_less['Sample_Name'] == exp][['countEvents', 'Size']]
+    # del_lens.append(mh_exp_data['Size'].astype('int32'))
 
   return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 

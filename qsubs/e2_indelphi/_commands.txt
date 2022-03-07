@@ -1,3 +1,0 @@
-nohup python -u e2_indelphi.py VO-spacers-HEK293-48h-controladj redo > nh_e2_VO-spacers-HEK293-48h-controladj.out &
-nohup python -u e2_indelphi.py VO-spacers-HCT116-48h-controladj redo > nh_e2_VO-spacers-HCT116-48h-controladj.out &
-nohup python -u e2_indelphi.py VO-spacers-K562-48h-controladj redo > nh_e2_VO-spacers-K562-48h-controladj.out &
