@@ -40,6 +40,10 @@ def mh_del_subset(df):
   criteria = (df['Category'] == 'del') & (df['Microhomology-Based'] == 'yes')
   return df[criteria]
 
+def mh_del_subset_new(df):
+  criteria = (df['Type'] == 'DELETION') & (df['homologyLength'] != 0)
+  return df[criteria]
+
 def indels_without_mismatches_subset(df):
   criteria = (df['Indel with Mismatches'] != 'yes')
   return df[criteria]
@@ -53,6 +57,9 @@ def get_sequence_cutsite(df):
 ##
 def normalize_frequency(df):
   return df['Count'] / sum(df['Count'])
+
+def normalize_frequency_new(df):
+  return df['countEvents'] / sum(df['countEvents'])
 
 def normalized_entropy(df):
   if 'Frequency' not in df.columns:

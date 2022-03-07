@@ -2,6 +2,9 @@
 
 from __future__ import absolute_import, division
 from __future__ import print_function
+
+import re
+
 import autograd.numpy as np
 import autograd.numpy.random as npr
 from autograd import grad
@@ -214,8 +217,8 @@ def print_and_log(text, log_fn):
 # Plotting and Writing
 ##
 def save_parameters(nn_params, nn2_params, out_dir_params, letters):
-  pickle.dump(nn_params, open(out_dir_params + letters + '_nn.pkl', 'w'))
-  pickle.dump(nn2_params, open(out_dir_params + letters + '_nn2.pkl', 'w'))
+  pickle.dump(nn_params, open(out_dir_params + letters + '_nn.pkl', 'wb'))
+  pickle.dump(nn2_params, open(out_dir_params + letters + '_nn2.pkl', 'wb'))
   return
 
 def rsq(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs):
@@ -367,14 +370,63 @@ def plot_pred_obs(nn_params, nn2_params, inp, obs, del_lens, nms, datatype, lett
         break
   return
 
+def data_parse_current(counts, del_features):
+  merged = pd.concat([counts, del_features], axis=1)
+  deletions = merged[merged['Type'] == 'DELETION']
+  deletions = deletions.reset_index()
+  exps = [x.split('_')[-1] for x in deletions['Sample_Name'].values]
+  mh_lens = deletions['homologyLength'].values
+  gc_fracs = deletions['homologyGCContent'].values
+  del_lens = deletions['Size'].values
+  freqs = deletions['countEvents'].values
+  dels_per_len = deletions[deletions['Type'] == 'DELETION'][['Size', 'countEvents']].groupby('Size').apply(sum)['countEvents']
+  total_dels = sum(dels_per_len)
+  dels_per_len /= total_dels
+  dl_freqs = [dels_per_len.loc[x[5]] for x in deletions.values]
 
+  return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
+
+def data_parse_new(counts, del_features):
+  merged = pd.concat([counts, del_features], axis=1)
+  deletions = merged[merged['Type'] == 'DELETION']
+  deletions = deletions.reset_index()
+
+  # A single value GRNA
+  exps = deletions['Sample_Name'].unique()[:5]
+
+  # Question: How to determine if a deletion is MH or MH-less - length != 0
+  # Observation: Needs to be a vector for each different exp value
+  #              One possible way of approaching this is to ground grnas only on sequence
+  #              Interate over all different indels to get a vector
+
+  microhomologies = deletions[deletions['homologyLength'] != 0]
+  mh_lens, gc_fracs, del_lens, freqs, dl_freqs = [], [], [], [], []
+  for id, exp in enumerate(exps):
+    exp_data = microhomologies[microhomologies['Sample_Name'] == exp][['countEvents', 'homologyLength', 'homologyGCContent', 'Size']]
+
+    total_count = sum(exp_data['countEvents'])
+    exp_data['countEvents'] = exp_data['countEvents'].div(total_count)
+
+    freqs.append(exp_data['countEvents'])
+    mh_lens.append(exp_data['homologyLength'].astype('int32'))
+    gc_fracs.append(exp_data['homologyGCContent'])
+    del_lens.append(exp_data['Size'].astype('int32'))
+
+    curr_dl_freqs = []
+    dl_freq_df = exp_data[exp_data['Size'] <= 28]
+    for del_len in range(1, 28+1):
+      dl_freq = sum(dl_freq_df[dl_freq_df['Size'] == del_len]['countEvents'])
+      curr_dl_freqs.append(dl_freq)
+    dl_freqs.append(curr_dl_freqs)
+
+  return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
 ##
 # Setup / Run Main
 ##
 if __name__ == '__main__':
   # out_place = '/cluster/mshen/prj/mmej_figures/out/%s/' % (NAME)
-  out_place = './out'
+  out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
   util.ensure_dir_exists(out_place)
   num_folds = count_num_folders(out_place)
   out_letters = alphabetize(num_folds + 1)
@@ -403,6 +455,8 @@ if __name__ == '__main__':
   # master_data = pickle.load(open(inp_dir + 'dataset_try1.pkl'))
   # master_data = pickle.load(open(inp_dir + 'dataset_try2.pkl'))
   # master_data = pickle.load(open(inp_dir + 'dataset_try3.pkl'))
+  # master_data = pickle.load(open(inp_dir + 'dataset_try4.pkl'))
+
   master_data = pickle.load(open(inp_dir + 'dataset.pkl', 'rb'))
   counts = master_data['counts']
   del_features = master_data['del_features']
@@ -416,19 +470,10 @@ if __name__ == '__main__':
   # deletion lengths
   # frequencies -> microhomology.
   # deletion lengths frequencies -> from 1 to 28 (including) list frequency of each deletion freq
-  merged = pd.concat([counts, del_features], axis=1)
-  deletions = merged[merged['Type'] == 'DELETION']
-  deletions = deletions.reset_index()
-  exps = [x.split('_')[-1] for x in deletions['Sample_Name'].values]
-  mh_lens = deletions['homologyLength'].values
-  gc_fracs = deletions['homologyGCContent'].values
-  del_lens = deletions['Size'].values
-  freqs = deletions['countEvents'].values
-  dels_per_len = deletions[deletions['Type'] == 'DELETION'][['Size', 'countEvents']].groupby('Size').apply(sum)['countEvents']
-  total_dels = sum(dels_per_len)
-  dels_per_len /= total_dels
-  dl_freqs = [dels_per_len.loc[x[5]] for x in deletions.values]
+
   # [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = master_data
+  [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = data_parse_new(counts, del_features)
+
   INP = []
   for mhl, gcf in zip(mh_lens, gc_fracs):
     inp_point = np.array([mhl, gcf]).T   # N * 2
@@ -449,7 +494,8 @@ if __name__ == '__main__':
   Training parameters
   '''
   param_scale = 0.1
-  num_epochs = 7*200 + 1
+  # num_epochs = 7*200 + 1
+  num_epochs = 25
   step_size = 0.10
 
   init_nn_params = init_random_params(param_scale, nn_layer_sizes, rs = seed)
@@ -470,7 +516,7 @@ if __name__ == '__main__':
 
   # both_objective_grad = multigrad(objective, argnums=[0,1])
   # both_objective_grad = multigrad(objective, argnums=[0,1])
-  both_objective_grad = grad(objective)
+  both_objective_grad = grad(objective, argnum=[0,1])
 
   def print_perf(nn_params, nn2_params, iter):
     print_and_log(str(iter), log_fn)

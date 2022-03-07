@@ -38,7 +38,7 @@ def build_new_cas(lib, cas):
   lib_total = sum(lib['Count'])
   cas_total = sum(cas['Count'])
   if lib_total < 1000 or cas_total == 0:
-    print lib_total
+    print(lib_total)
     return cas
 
   join_cols = list(cas.columns)
@@ -80,7 +80,7 @@ def build_new_cas(lib, cas):
 # Main iterator
 ##
 def control_adjustment(nm, split):
-  print nm, split
+  print(nm, split)
   new_cas_data = pd.DataFrame()
   lib_data, cas_data = load_lib_cas_data(nm, split)
   for exp in set(cas_data['_Experiment']):
@@ -98,7 +98,7 @@ def control_adjustment(nm, split):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -124,13 +124,13 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 
 @util.time_dec
 def main(nm = '', split = ''):
-  print NAME  
+  print(NAME)
 
   if nm == '' and split == '':
     gen_qsubs()
