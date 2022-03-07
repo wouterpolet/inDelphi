@@ -11,6 +11,10 @@ from mylib import util
 from d2_model import alphabetize, count_num_folders, print_and_log, save_train_test_names\
   , init_random_params, main_objective, rsq, save_parameters, adam_minmin
 
+import fi2_ins_ratio
+import fk_1bpins
+
+
 def parse_data(counts, del_features):
   merged = pd.concat([counts, del_features], axis=1)
   deletions = merged[merged['Type'] == 'DELETION']
@@ -50,15 +54,6 @@ def parse_data(counts, del_features):
 
   return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
-def generate_train_optimize_model():
-  return
-
-def predict_all_items():
-  out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
-
-  # _predict.init_model(run_iter='aax', param_iter='aag')
-  # _predict.predict_all()
-
 def initialize_files_and_folders():
   # Set output location of model & params
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
@@ -86,18 +81,18 @@ def initialize_model():
   nn2_layer_sizes = [1, 16, 16, 1]
   return seed, nn_layer_sizes, nn2_layer_sizes
 
-
 def read_data(file):
-  master_data = pickle.load(open(inp_dir + file, 'rb'))
+  master_data = pickle.load(open(file, 'rb'))
   return master_data['counts'], master_data['del_features']
 
-def train_parameters(seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters):
+def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters):
   param_scale = 0.1
   # num_epochs = 7*200 + 1
-  num_epochs = 25
+  num_epochs = 50
   step_size = 0.10
   init_nn_params = init_random_params(param_scale, nn_layer_sizes, rs=seed)
   init_nn2_params = init_random_params(param_scale, nn2_layer_sizes, rs=seed)
+  INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
 
   batch_size = 200
   num_batches = int(np.ceil(len(INP_train) / batch_size))
@@ -144,18 +139,11 @@ def train_parameters(seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_
 
   optimized_params = adam_minmin(both_objective_grad, init_nn_params, init_nn2_params, step_size=step_size, num_iters=num_epochs, callback=print_perf)
 
-
-if __name__ == '__main__':
-  '''
-  Neural Network (MH)
-  Model Creation, Training & Optimization
-  '''
-  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders()
+def neural_networks():
   seed, nn_layer_sizes, nn2_layer_sizes = initialize_model()
 
   print_and_log("Loading data...", log_fn)
-  inp_dir = '../in/'
-  counts, del_features = read_data('dataset.pkl')
+  counts, del_features = read_data('../in/' + 'dataset.pkl')
   [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(counts, del_features)
 
   print_and_log("Parsing data...", log_fn)
@@ -174,11 +162,76 @@ if __name__ == '__main__':
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
-  train_parameters(out_dir_params, seed, nn_layer_sizes, nn2_layer_sizes, out_letters)
+  train_parameters(ans, out_dir_params, seed, nn_layer_sizes, nn2_layer_sizes, out_letters)
+
+def knn():
+  exps = ['VO-spacers-HEK293-48h-controladj',
+          'VO-spacers-K562-48h-controladj',
+          'DisLib-mES-controladj',
+          'DisLib-U2OS-controladj',
+          'Lib1-mES-controladj'
+         ]
+
+  all_rate_stats = pd.DataFrame()
+  all_bp_stats = pd.DataFrame()
+  for exp in exps:
+    # TODO: Check re statistics - this might be an issue
+    rate_stats = fi2_ins_ratio.load_statistics(exp)
+    rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
+    bp_stats = fk_1bpins.load_statistics(exp)
+    exps = rate_stats['_Experiment']
+
+    if 'DisLib' in exp:
+      crit = (rate_stats['_Experiment'] >= 73) & (rate_stats['_Experiment'] <= 300)
+      rs = rate_stats[crit]
+      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)
+
+      crit = (rate_stats['_Experiment'] >= 16) & (rate_stats['_Experiment'] <= 72)
+      rs = rate_stats[crit]
+      rs = rs[rs['Ins1bp Ratio'] < 0.3] # remove outliers
+      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)
+
+      crit = (bp_stats['_Experiment'] >= 73) & (bp_stats['_Experiment'] <= 300)
+      rs = bp_stats[crit]
+      all_bp_stats = all_bp_stats.append(rs, ignore_index = True)
+
+      crit = (bp_stats['_Experiment'] >= 16) & (bp_stats['_Experiment'] <= 72)
+      rs = bp_stats[crit]
+      all_bp_stats = all_bp_stats.append(rs, ignore_index = True)
+
+    elif 'VO' in exp or 'Lib1' in exp:
+      all_rate_stats = all_rate_stats.append(rate_stats, ignore_index = True)
+      all_bp_stats = all_bp_stats.append(bp_stats, ignore_index = True)
+
+    print(exp, len(all_rate_stats))
+
+  X, Y, Normalizer = featurize(all_rate_stats, 'Ins1bp/Del Ratio')
+  generate_models(X, Y, all_bp_stats, Normalizer)
+
+
+def predict_all_items():
+  out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
+
+  # _predict.init_model(run_iter='aax', param_iter='aag')
+  # _predict.predict_all()
+
+
+
+
+if __name__ == '__main__':
+  '''
+  Neural Network (MH)
+  Model Creation, Training & Optimization
+  '''
+  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders()
+  neural_networks()
 
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
+  knn()
+
+
 
 
