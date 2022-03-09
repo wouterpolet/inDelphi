@@ -615,7 +615,7 @@ def get_wildtype(master_df, exp, exp_dir):
 # main 
 ##
 def genotype_data(inp_dir, out_dir, nm, start, end):
-  print nm
+  print(nm)
   start, end = int(start), int(end)
   master_df = pd.DataFrame()
 
@@ -672,7 +672,7 @@ def genotype_data(inp_dir, out_dir, nm, start, end):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -697,12 +697,12 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 @util.time_dec
 def main(inp_dir, out_dir, nm = '', start = '', end = ''):
-  print NAME  
+  print(NAME)
   inp_dir = '%s%s/' % (inp_dir, nm)
   util.ensure_dir_exists(out_dir)
 

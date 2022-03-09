@@ -113,13 +113,13 @@ def init_alignment_buffer():
   return alignment_buffer
 
 def flush_alignments(alignment_buffer, out_dir):
-  print 'Flushing... \n%s' % (datetime.datetime.now())
+  print('Flushing... \n%s' % (datetime.datetime.now()))
   for exp in alignment_buffer:
     with open(out_dir + '%s.txt' % (exp), 'a') as f:
       for align in alignment_buffer[exp]:
         f.write(align)
   alignment_buffer = init_alignment_buffer()
-  print 'Done flushing.\n%s' % (datetime.datetime.now())
+  print('Done flushing.\n%s' % (datetime.datetime.now()))
   return
 
 def prepare_outfns(out_dir):
@@ -132,7 +132,7 @@ def prepare_outfns(out_dir):
 # Main
 ##
 def matchmaker(nm, split):
-  print nm, split
+  print(nm, split)
   stdout_fn = _config.SRC_DIR + 'nh_c_%s_%s.out' % (nm, split)
   util.exists_empty_fn(stdout_fn)
   out_dir = out_place + nm + '/' + split + '/'
@@ -200,7 +200,7 @@ def matchmaker(nm, split):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -224,12 +224,12 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 @util.time_dec
 def main(nm = '', split = ''):
-  print NAME  
+  print(NAME)
 
   if nm == '' and split == '':
     gen_qsubs()

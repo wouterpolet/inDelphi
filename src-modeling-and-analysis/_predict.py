@@ -208,9 +208,9 @@ def init_model(run_iter = 'aax', param_iter = 'aag'):
   if model != None:
     return
 
-  print 'Initializing model %s/%s...' % (run_iter, param_iter)
+  print('Initializing model %s/%s...' % (run_iter, param_iter))
   
-  model_out_dir = '/cluster/mshen/prj/mmej_figures/out/d2_model/'
+  model_out_dir = './out/d2_model/'
 
   param_fold = model_out_dir + '%s/parameters/' % (run_iter)
   global nn_params
@@ -220,5 +220,5 @@ def init_model(run_iter = 'aax', param_iter = 'aag'):
 
   model = imp.load_source('model', model_out_dir + '%s/d2_model-noautograd.py' % (run_iter))
   
-  print 'Done'
+  print('Done')
   return

@@ -119,10 +119,10 @@ def init_featurized_data():
   return all_data
 
 def pickle_featurized_data(featurized_data, nm):
-  print 'Pickling..'
+  print('Pickling..')
   with open(out_dir + '%s.pkl' % (nm), 'w') as f:
     pickle.dump(featurized_data, f)
-  print 'Done'
+  print('Done')
   return
 
 ##
@@ -236,7 +236,7 @@ def prepare_dataset_try3():
 ##
 def prepare_dataset_try4():
   dataset_nm = 'dataset_try4'
-  print 'Preparing %s' % (dataset_nm)
+  print('Preparing %s' % (dataset_nm))
 
   featurized_data = init_featurized_data()
 
@@ -262,7 +262,7 @@ def prepare_dataset_try4():
   for exp in dataset.keys():
     if exp not in _config.d.HIGHREP_DISLIB_EXPS_NMS:
       del dataset[exp]
-  print len(dataset)
+  print(len(dataset))
   prepare_library_dataset(dataset, featurized_data)
 
   # Load Lib1 data
@@ -277,7 +277,7 @@ def prepare_dataset_try4():
     if int(exp) not in _config.d.HIGHREP_LIB1_EXPS:
       del dataset[exp]
 
-  print len(dataset)
+  print(len(dataset))
   prepare_library_dataset(dataset, featurized_data)
 
   pickle_featurized_data(featurized_data, dataset_nm)
@@ -285,11 +285,66 @@ def prepare_dataset_try4():
 
 
 ##
+# Dataset
+##
+def prepare_dataset_libA():
+  dataset_nm = 'dataset'
+  print('Preparing %s' % (dataset_nm))
+
+  featurized_data = init_featurized_data()
+
+  # Load dislib, longdups
+  dataset = _data.load_dataset('DisLib-mES-controladj',
+                               exp_subset = 'longdup_series',
+                               exp_subset_col = 'Designed Name')
+  for exp in dataset.keys():
+    if exp not in _config.d.HIGHREP_DISLIB_EXPS_NMS:
+      del dataset[exp]
+  prepare_library_dataset(dataset, featurized_data)
+
+  # Load dislib, clin data
+  dataset = _data.load_dataset('DisLib-mES-controladj',
+                               exp_subset = 'clin',
+                               exp_subset_col = 'Designed Name')
+
+  # Remove data with iterated editing
+  dlwt = _config.d.DISLIB_WT
+  for idx, row in dlwt.iterrows():
+    if row['wt_repairable'] == 'iterwt':
+      del dataset[row['name']]
+  for exp in dataset.keys():
+    if exp not in _config.d.HIGHREP_DISLIB_EXPS_NMS:
+      del dataset[exp]
+  print(len(dataset))
+  prepare_library_dataset(dataset, featurized_data)
+
+  # Load Lib1 data
+  dataset = _data.load_dataset('Lib1-mES-controladj')
+
+  # Remove VO spacers from lib 1
+  for vo_spacer_idx in range(1872, 1961+1):
+    vo_spacer_exp = str(vo_spacer_idx)
+    del dataset[vo_spacer_exp]
+  # Remove low rep spacers from lib1
+  for exp in dataset.keys():
+    if int(exp) not in _config.d.HIGHREP_LIB1_EXPS:
+      del dataset[exp]
+
+  print(len(dataset))
+  prepare_library_dataset(dataset, featurized_data)
+
+  pickle_featurized_data(featurized_data, dataset_nm)
+  return
+
+
+
+
+##
 # Main
 ##
 @util.time_dec
 def main(data_nm = ''):
-  print NAME
+  print(NAME)
   global out_dir
   util.ensure_dir_exists(out_dir)
 

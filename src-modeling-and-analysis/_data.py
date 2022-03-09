@@ -14,9 +14,11 @@ memoized = dict()
 
 D = pd.read_csv(_config.DATA_DIR + 'DataTable.csv', dtype = {'Name': str, 'Library': str, 'Memoization': str, 'Local_Name': str, 'Alignment_Directory': str, 'Data_Directory': str})
 
-exp_subset_dict = {'vo_spacers': ['overbeek_spacer_1', 'overbeek_spacer_10', 'overbeek_spacer_11', 'overbeek_spacer_12', 'overbeek_spacer_13', 'overbeek_spacer_14', 'overbeek_spacer_15', 'overbeek_spacer_16', 'overbeek_spacer_17', 'overbeek_spacer_18', 'overbeek_spacer_19', 'overbeek_spacer_2', 'overbeek_spacer_20', 'overbeek_spacer_21', 'overbeek_spacer_22', 'overbeek_spacer_23', 'overbeek_spacer_24', 'overbeek_spacer_25', 'overbeek_spacer_26', 'overbeek_spacer_27', 'overbeek_spacer_28', 'overbeek_spacer_29', 'overbeek_spacer_3', 'overbeek_spacer_30', 'overbeek_spacer_31', 'overbeek_spacer_32', 'overbeek_spacer_33', 'overbeek_spacer_34', 'overbeek_spacer_35', 'overbeek_spacer_36', 'overbeek_spacer_37', 'overbeek_spacer_38', 'overbeek_spacer_39', 'overbeek_spacer_4', 'overbeek_spacer_40', 'overbeek_spacer_41', 'overbeek_spacer_42', 'overbeek_spacer_43', 'overbeek_spacer_44', 'overbeek_spacer_45', 'overbeek_spacer_46', 'overbeek_spacer_47', 'overbeek_spacer_48', 'overbeek_spacer_49', 'overbeek_spacer_5', 'overbeek_spacer_50', 'overbeek_spacer_51', 'overbeek_spacer_52', 'overbeek_spacer_53', 'overbeek_spacer_54', 'overbeek_spacer_55', 'overbeek_spacer_56', 'overbeek_spacer_57', 'overbeek_spacer_58', 'overbeek_spacer_59', 'overbeek_spacer_6', 'overbeek_spacer_60', 'overbeek_spacer_61', 'overbeek_spacer_62', 'overbeek_spacer_63', 'overbeek_spacer_64', 'overbeek_spacer_65', 'overbeek_spacer_66', 'overbeek_spacer_67', 'overbeek_spacer_68', 'overbeek_spacer_69', 'overbeek_spacer_7', 'overbeek_spacer_70', 'overbeek_spacer_71', 'overbeek_spacer_72', 'overbeek_spacer_73', 'overbeek_spacer_74', 'overbeek_spacer_75', 'overbeek_spacer_76', 'overbeek_spacer_77', 'overbeek_spacer_78', 'overbeek_spacer_79', 'overbeek_spacer_8', 'overbeek_spacer_80', 'overbeek_spacer_81', 'overbeek_spacer_82', 'overbeek_spacer_83', 'overbeek_spacer_84', 'overbeek_spacer_85', 'overbeek_spacer_86', 'overbeek_spacer_87', 'overbeek_spacer_88', 'overbeek_spacer_89', 'overbeek_spacer_9', 'overbeek_spacer_90', 'overbeek_spacer_91', 'overbeek_spacer_92', 'overbeek_spacer_93', 'overbeek_spacer_94', 'overbeek_spacer_95', 'overbeek_spacer_96'],
+exp_subset_dict = {
+  'vo_spacers': ['overbeek_spacer_1', 'overbeek_spacer_10', 'overbeek_spacer_11', 'overbeek_spacer_12', 'overbeek_spacer_13', 'overbeek_spacer_14', 'overbeek_spacer_15', 'overbeek_spacer_16', 'overbeek_spacer_17', 'overbeek_spacer_18', 'overbeek_spacer_19', 'overbeek_spacer_2', 'overbeek_spacer_20', 'overbeek_spacer_21', 'overbeek_spacer_22', 'overbeek_spacer_23', 'overbeek_spacer_24', 'overbeek_spacer_25', 'overbeek_spacer_26', 'overbeek_spacer_27', 'overbeek_spacer_28', 'overbeek_spacer_29', 'overbeek_spacer_3', 'overbeek_spacer_30', 'overbeek_spacer_31', 'overbeek_spacer_32', 'overbeek_spacer_33', 'overbeek_spacer_34', 'overbeek_spacer_35', 'overbeek_spacer_36', 'overbeek_spacer_37', 'overbeek_spacer_38', 'overbeek_spacer_39', 'overbeek_spacer_4', 'overbeek_spacer_40', 'overbeek_spacer_41', 'overbeek_spacer_42', 'overbeek_spacer_43', 'overbeek_spacer_44', 'overbeek_spacer_45', 'overbeek_spacer_46', 'overbeek_spacer_47', 'overbeek_spacer_48', 'overbeek_spacer_49', 'overbeek_spacer_5', 'overbeek_spacer_50', 'overbeek_spacer_51', 'overbeek_spacer_52', 'overbeek_spacer_53', 'overbeek_spacer_54', 'overbeek_spacer_55', 'overbeek_spacer_56', 'overbeek_spacer_57', 'overbeek_spacer_58', 'overbeek_spacer_59', 'overbeek_spacer_6', 'overbeek_spacer_60', 'overbeek_spacer_61', 'overbeek_spacer_62', 'overbeek_spacer_63', 'overbeek_spacer_64', 'overbeek_spacer_65', 'overbeek_spacer_66', 'overbeek_spacer_67', 'overbeek_spacer_68', 'overbeek_spacer_69', 'overbeek_spacer_7', 'overbeek_spacer_70', 'overbeek_spacer_71', 'overbeek_spacer_72', 'overbeek_spacer_73', 'overbeek_spacer_74', 'overbeek_spacer_75', 'overbeek_spacer_76', 'overbeek_spacer_77', 'overbeek_spacer_78', 'overbeek_spacer_79', 'overbeek_spacer_8', 'overbeek_spacer_80', 'overbeek_spacer_81', 'overbeek_spacer_82', 'overbeek_spacer_83', 'overbeek_spacer_84', 'overbeek_spacer_85', 'overbeek_spacer_86', 'overbeek_spacer_87', 'overbeek_spacer_88', 'overbeek_spacer_89', 'overbeek_spacer_9', 'overbeek_spacer_90', 'overbeek_spacer_91', 'overbeek_spacer_92', 'overbeek_spacer_93', 'overbeek_spacer_94', 'overbeek_spacer_95', 'overbeek_spacer_96'],
   'longdup_series': ['longdup_7_r1', 'longdup_8_r1', 'longdup_9_r1', 'longdup_10_r1', 'longdup_11_r1', 'longdup_12_r1', 'longdup_13_r1', 'longdup_14_r1', 'longdup_15_r1', 'longdup_16_r1', 'longdup_17_r1', 'longdup_18_r1', 'longdup_19_r1', 'longdup_20_r1', 'longdup_21_r1', 'longdup_22_r1', 'longdup_23_r1', 'longdup_24_r1', 'longdup_25_r1', 'longdup_7_r2', 'longdup_8_r2', 'longdup_9_r2', 'longdup_10_r2', 'longdup_11_r2', 'longdup_12_r2', 'longdup_13_r2', 'longdup_14_r2', 'longdup_15_r2', 'longdup_16_r2', 'longdup_17_r2', 'longdup_18_r2', 'longdup_19_r2', 'longdup_20_r2', 'longdup_21_r2', 'longdup_22_r2', 'longdup_23_r2', 'longdup_24_r2', 'longdup_25_r2', 'longdup_7_r3', 'longdup_8_r3', 'longdup_9_r3', 'longdup_10_r3', 'longdup_11_r3', 'longdup_12_r3', 'longdup_13_r3', 'longdup_14_r3', 'longdup_15_r3', 'longdup_16_r3', 'longdup_17_r3', 'longdup_18_r3', 'longdup_19_r3', 'longdup_20_r3', 'longdup_21_r3', 'longdup_22_r3', 'longdup_23_r3', 'longdup_24_r3', 'longdup_25_r3'],
-  'clin': [str(s).strip() for s in open(_config.DATA_DIR + 'names_dislib.txt').readlines()[408:]]}
+  'clin': [str(s).strip() for s in open(_config.DATA_DIR + 'names_dislib.txt').readlines()[408:]]
+}
 
 L3 = dict()
 with open(_config.DATA_DIR + 'L3DataTable.csv') as f:
@@ -46,7 +48,7 @@ def merge_l2_datasets_summation(l3_data):
       if key not in keys_superset:
         keys_superset.add(key)
 
-  print 'Merging %s level2 datasets with summation' % (len(l3_data))
+  print('Merging %s level2 datasets with summation' % (len(l3_data)))
   timer = util.Timer(total = len(keys_superset))
   for exp in keys_superset:
     dfs = []
@@ -124,7 +126,7 @@ def load_dataset(nm, exp_subset = None, exp_subset_col = None):
   elif nm in L3:
     return load_l3_dataset(nm, exp_subset = exp_subset, exp_subset_col = exp_subset_col)
   else:
-    print 'ERROR: Bad name %s' % (nm)
+    print('ERROR: Bad name %s' % (nm))
     return None
 
 ##
@@ -135,9 +137,9 @@ def load_l3_dataset(nm, exp_subset = None, exp_subset_col = None):
   # Combines the level 2 datasets in some fashion (e.g., summation)
   # Pickles for amortized processing
   if nm not in L3:
-    print 'ERROR: Bad L3 name %s' % (nm)
+    print('ERROR: Bad L3 name %s' % (nm))
     return None
-  print 'Loading L3 dataset: %s' % (nm)
+  print('Loading L3 dataset: %s' % (nm))
 
   # Load library -- should just be one for all of L3 set
   l2_dataset_nm = L3[nm][0]
@@ -151,30 +153,30 @@ def load_l3_dataset(nm, exp_subset = None, exp_subset_col = None):
   if exp_subset_col is not None:
     nm_col = exp_subset_col
   if nm_col not in list(library_df.columns):
-    print 'ERROR: Bad column name, %s' % (nm_col)
+    print('ERROR: Bad column name, %s' % (nm_col))
 
   # Determine subset of experiments to return. By default, use all
   exp_set = set(library_df[nm_col])
   if exp_subset is not None:
     if exp_subset not in exp_subset_dict:
-      print 'ERROR: Bad exp subset %s' % (exp_subset)
+      print('ERROR: Bad exp subset %s' % (exp_subset))
     exp_set = exp_subset_dict[exp_subset]
 
   # Try to load from pickle
   pickled_fn = _config.DATA_DIR + 'L3_Datasets/%s.pkl' % (nm)
   if os.path.isfile(pickled_fn):
-    print 'Loading dataset from pickle...'
+    print('Loading dataset from pickle...')
     l3_data = pickle.load(open(pickled_fn))
-    print 'Done'
+    print('Done')
   else:
-    print 'Loading dataset from scratch...'
+    print('Loading dataset from scratch...')
     l3_data = dict()
     for l2_dataset_nm in L3[nm]:
       data = load_l2_dataset(l2_dataset_nm, exp_subset = exp_subset, exp_subset_col = exp_subset_col)
       l3_data[l2_dataset_nm] = data
     l3_data = merge_l2_datasets_summation(l3_data)
     pickle.dump(l3_data, open(pickled_fn, 'w'))
-    print 'Done'
+    print('Done')
 
   # Iterate through library, using local name to load dataframes, and labeling it with nm_col -- only on the subset of data specified
   dataset = dict()
@@ -192,9 +194,9 @@ def load_l2_dataset(nm, exp_subset = None, exp_subset_col = None):
   # Loads a level 2 dataset by finding its associated library, and iteratively loading all single experiments in the library.
   # Stores the the level 2 dataset with pickle. 
   if nm not in set(D['Name']):
-    print 'ERROR: Bad name %s' % (nm)
+    print('ERROR: Bad name %s' % (nm))
     return None
-  print 'Loading %s' % (nm)
+  print('Loading %s' % (nm))
 
   row = D[D['Name'] == nm]
   library_nm = row['Library'].iloc[0]
@@ -211,23 +213,23 @@ def load_l2_dataset(nm, exp_subset = None, exp_subset_col = None):
   if exp_subset_col is not None:
     nm_col = exp_subset_col
   if nm_col not in list(library_df.columns):
-    print 'ERROR: Bad column name, %s' % (nm_col)
+    print('ERROR: Bad column name, %s' % (nm_col))
 
   # Determine subset of experiments to return. By default, use all
   exp_set = set(library_df[nm_col])
   if exp_subset is not None:
     if exp_subset not in exp_subset_dict:
-      print 'ERROR: Bad exp subset %s' % (exp_subset)
+      print('ERROR: Bad exp subset %s' % (exp_subset))
     exp_set = exp_subset_dict[exp_subset]
 
   # If pickled version of default dataset exists, load it. Otherwise, make it.
   pickled_fn = _config.DATA_DIR + 'L2_Datasets/%s' % (nm)
   if os.path.isfile(pickled_fn):
-    print 'Loading default dataset from pickle...'
+    print('Loading default dataset from pickle...')
     default_dataset = pickle.load(open(pickled_fn))
-    print 'Done'
+    print('Done')
   else:
-    print 'Loading default dataset from scratch...'
+    print('Loading default dataset from scratch...')
     default_dataset = dict()
     timer = util.Timer(total = len(library_df))
     for idx, row2 in library_df.iterrows():
@@ -235,7 +237,7 @@ def load_l2_dataset(nm, exp_subset = None, exp_subset_col = None):
       default_dataset[row2['Name']] = d
       timer.update()
     pickle.dump(default_dataset, open(pickled_fn, 'w'))
-    print 'Done'
+    print('Done')
 
 
   # Iterate through library, using local name to load dataframes, and labeling it with nm_col -- only on the subset of data specified
@@ -246,9 +248,9 @@ def load_l2_dataset(nm, exp_subset = None, exp_subset_col = None):
       d = default_dataset[default_nm]
       dataset[row2[nm_col]] = d
 
-  print 'Dataset size: %s' % (len(dataset))
+  print('Dataset size: %s' % (len(dataset)))
   if len(dataset) == 0:
-    print 'Ensure exp_subset is a list of strings'
+    print('Ensure exp_subset is a list of strings')
 
   return dataset
 

@@ -1,14 +1,15 @@
 # Config parameters
 # imported by src/_config
+import os
 
 NAMES = ['GH', 'IJ']
 
-data_dir = '/cluster/mshen/prj/mmej_manda/data/2017-08-23/'
+data_dir = os.path.dirname(__file__)
 
-GRNAS = open(data_dir + 'grna.txt').read().split()
-TARGETS = open(data_dir + 'targets.txt').read().split()
+GRNAS = open(os.path.join(data_dir, 'grna-libA.txt')).read().split()
+TARGETS = open(os.path.join(data_dir, 'targets-libA.txt')).read().split()
 # TARGETS_EXPWT = open(data_dir + 'targets_expwt.txt').read().split()
-OLIGO_NAMES = open(data_dir + 'names.txt').read().split()
+OLIGO_NAMES = open(os.path.join(data_dir, 'names-libA.txt')).read().split()
 
 def add_mer(inp):
   new = []

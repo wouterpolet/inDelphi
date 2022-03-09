@@ -15,7 +15,7 @@ NAME = util.get_fn(__file__)
 
 @util.time_dec
 def main():
-  print NAME  
+  print(NAME)
   dtypes = {'Category': str, 'Count': float, 'Genotype Position': float, 'Indel with Mismatches': str, 'Ins Fivehomopolymer': str, 'Ins Template Length': float, 'Ins mh2': str, 'Ins p2': str, 'Inserted Bases': str, 'Length': float, 'Microhomology-Based': str, '_ExpDir': str, '_Experiment': str, '_Sequence Context': str, '_Cutsite': int}
 
   mdf = pd.DataFrame()
@@ -27,14 +27,14 @@ def main():
   for nm in bcs:
     mdf = pd.DataFrame()
     for start in range(0, 2000, 100):
-      print start
+      print(start)
       fn = inp_dir + '%s_genotypes_%s.csv' % (nm, start)
       df = pd.read_csv(fn, index_col = 0, dtype = dtypes)
       mdf = pd.concat([mdf, df], ignore_index = True)
 
     mdf.to_csv(inp_dir + '%s.csv' % (nm))
-    print 'Wrote to %s.csv' % (inp_dir + '%s' % (nm))
-  print 'Done'
+    print('Wrote to %s.csv' % (inp_dir + '%s' % (nm)))
+  print('Done')
   return
 
 

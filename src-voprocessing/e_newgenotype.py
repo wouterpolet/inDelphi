@@ -50,7 +50,7 @@ def set_master_expected_cutsite(srr_id):
     # Three out of 96 spacers have both CC/GG, all three are GG.
     master_expected_cutsite = start + 23 - 6
   else:
-    print 'ERROR: Expected gRNA lacks NGG on both strands'
+    print('ERROR: Expected gRNA lacks NGG on both strands')
     sys.exit(0)
 
   context = ''
@@ -601,7 +601,7 @@ def get_wildtype(master_df, exp, exp_dir):
 # main 
 ##
 def genotype_data(inp_dir, out_dir, srr_id, context):
-  print srr_id
+  print(srr_id)
   master_df = pd.DataFrame()
 
   exp_dir = '%s%s/' % (inp_dir, srr_id)
@@ -645,7 +645,7 @@ def genotype_data(inp_dir, out_dir, srr_id, context):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -670,7 +670,7 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print('Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 ##
@@ -678,7 +678,7 @@ def gen_qsubs():
 ##
 @util.time_dec
 def main(inp_dir, out_dir, nm = 'none', start = 'none', end = 'none'):
-  print NAME  
+  print(NAME)
   util.ensure_dir_exists(out_dir)
 
   if nm == 'none' and start == 'none' and end == 'none':
@@ -687,7 +687,7 @@ def main(inp_dir, out_dir, nm = 'none', start = 'none', end = 'none'):
 
   if nm != 'none' and start == 'none' and end == 'none':
     # Run single
-    print nm
+    print(nm)
     res, context = set_master_expected_cutsite(nm)
     if res is False:
       return

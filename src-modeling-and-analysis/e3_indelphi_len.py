@@ -130,9 +130,9 @@ def load_statistics(data_nm):
     stats_csv = prepare_statistics(data_nm)
     stats_csv.to_csv(stats_csv_fn)
   else:
-    print 'Getting statistics from file...'
+    print('Getting statistics from file...')
     stats_csv = pd.read_csv(stats_csv_fn, index_col = 0)
-  print 'Done'
+  print('Done')
   return stats_csv
 
 ##
@@ -149,7 +149,7 @@ def plot():
 ##
 def gen_nohups():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating nohup scripts...'
+  print('Generating nohup scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   nh_commands = []
@@ -172,7 +172,7 @@ def gen_nohups():
 ##
 @util.time_dec
 def main(data_nm = '', redo_flag = ''):
-  print NAME
+  print(NAME)
   global out_dir
   util.ensure_dir_exists(out_dir)
 
