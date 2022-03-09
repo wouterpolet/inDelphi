@@ -42,48 +42,48 @@ def calc_statistics(df, exp, alldf_dict):
   # Deletion positions
 
   # Denominator is crispr activity
-  df = _lib.crispr_subset(df)
-  if sum(df['Count']) <= 500:
+  df = _lib.crispr_subset(df)                     # for that gRNA, get the actual Cas9 products
+  if sum(df['Count']) <= 500:                     #
     return
-  df['Frequency'] = _lib.normalize_frequency(df)
+  df['Frequency'] = _lib.normalize_frequency(df)  # normalised frequency calculated from Counts
 
   criteria = (df['Category'] == 'ins') & (df['Length'] == 1)
   if sum(df[criteria]['Count']) <= 100:
     return
   freq = sum(df[criteria]['Frequency'])
-  alldf_dict['Frequency'].append(freq)
+  alldf_dict['Frequency'].append(freq)    # the freq of 1bp ins over all Cas9 products
 
-  s = df[criteria]
+  s = df[criteria]        # all 1bp insertions
 
   try:
     a_frac = sum(s[s['Inserted Bases'] == 'A']['Frequency']) / freq
   except TypeError:
     a_frac = 0
-  alldf_dict['A frac'].append(a_frac)
+  alldf_dict['A frac'].append(a_frac)       # the freq of A ins over all 1bp ins
 
   try:
     c_frac = sum(s[s['Inserted Bases'] == 'C']['Frequency']) / freq
   except:
     c_frac = 0
-  alldf_dict['C frac'].append(c_frac)
+  alldf_dict['C frac'].append(c_frac)       # the freq of C ins over all 1bp ins
 
   try:
     g_frac = sum(s[s['Inserted Bases'] == 'G']['Frequency']) / freq
   except:
     g_frac = 0
-  alldf_dict['G frac'].append(g_frac)
+  alldf_dict['G frac'].append(g_frac)       # the freq of G ins over all 1bp ins
 
   try:
     t_frac = sum(s[s['Inserted Bases'] == 'T']['Frequency']) / freq
   except:
     t_frac = 0
-  alldf_dict['T frac'].append(t_frac)
+  alldf_dict['T frac'].append(t_frac)       # the freq of T ins over all 1bp ins
 
   seq, cutsite = _lib.get_sequence_cutsite(df)
   fivebase = seq[cutsite-1]
-  alldf_dict['Base'].append(fivebase)
+  alldf_dict['Base'].append(fivebase)       # the -4 base
 
-  alldf_dict['_Experiment'].append(exp)
+  alldf_dict['_Experiment'].append(exp)     # gRNA experiment
 
   return alldf_dict
 
@@ -100,9 +100,9 @@ def prepare_statistics(data_nm):
 
   timer = util.Timer(total = len(dataset))
   # for exp in dataset.keys()[:100]:
-  for exp in dataset.keys():
-    df = dataset[exp]
-    calc_statistics(df, exp, alldf_dict)
+  for exp in dataset.keys():              #  for each gRNA in 'excel file' dataset
+    df = dataset[exp]                     # get the data for that one gRNA
+    calc_statistics(df, exp, alldf_dict)  # calc stats for that one gRNA
     timer.update()
 
   # Return a dataframe where columns are positions and rows are experiment names, values are frequencies

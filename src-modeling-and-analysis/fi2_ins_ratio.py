@@ -49,55 +49,55 @@ def calc_statistics(df, exp, alldf_dict):
     return
 
   editing_rate = sum(_lib.crispr_subset(df)['Count']) / sum(_lib.notnoise_subset(df)['Count'])
-  alldf_dict['Editing Rate'].append(editing_rate)
+  alldf_dict['Editing Rate'].append(editing_rate)     # % of Cas9 induced non-noise products
 
   ins_criteria = (df['Category'] == 'ins') & (df['Length'] == 1) & (df['Indel with Mismatches'] != 'yes')
-  ins_count = sum(df[ins_criteria]['Count'])
+  ins_count = sum(df[ins_criteria]['Count'])      # number of insertions for that gRNA
 
   del_criteria = (df['Category'] == 'del') & (df['Indel with Mismatches'] != 'yes')
-  del_count = sum(df[del_criteria]['Count'])
+  del_count = sum(df[del_criteria]['Count'])      # number of deletions for that gRNA
   if del_count == 0:
     return
-  alldf_dict['Ins1bp/Del Ratio'].append(ins_count / (del_count + ins_count))
+  alldf_dict['Ins1bp/Del Ratio'].append(ins_count / (del_count + ins_count))    # 1bp freq over all indel freq
 
   mhdel_crit = (df['Category'] == 'del') & (df['Indel with Mismatches'] != 'yes') & (df['Microhomology-Based'] == 'yes')
-  mhdel_count = sum(df[mhdel_crit]['Count'])
+  mhdel_count = sum(df[mhdel_crit]['Count'])    # number of MH-based deletions
   try:
     alldf_dict['Ins1bp/MHDel Ratio'].append(ins_count / (mhdel_count + ins_count))
   except ZeroDivisionError:
     alldf_dict['Ins1bp/MHDel Ratio'].append(0)
 
   ins_ratio = ins_count / sum(_lib.crispr_subset(df)['Count'])
-  alldf_dict['Ins1bp Ratio'].append(ins_ratio)
+  alldf_dict['Ins1bp Ratio'].append(ins_ratio) # ins ratio over all cas9 induced products
 
-  seq, cutsite = _lib.get_sequence_cutsite(df)
-  fivebase = seq[cutsite - 1]
+  seq, cutsite = _lib.get_sequence_cutsite(df)  # cutsite returns the base right after the cutsite
+  fivebase = seq[cutsite - 1]       #the base to the left of the cutsite / the -4 base (fig 1e)
   alldf_dict['Fivebase'].append(fivebase)
 
   _predict2.init_model()
   del_score = _predict2.total_deletion_score(seq, cutsite)
-  alldf_dict['Del Score'].append(del_score)
+  alldf_dict['Del Score'].append(del_score)     #  total deletion score
 
   dlpred = _predict2.deletion_length_distribution(seq, cutsite)
   from scipy.stats import entropy
   norm_entropy = entropy(dlpred) / np.log(len(dlpred))
-  alldf_dict['Entropy'].append(norm_entropy)
+  alldf_dict['Entropy'].append(norm_entropy)        # normalised precision score
 
-  local_seq = seq[cutsite - 4 : cutsite + 4]
-  gc = (local_seq.count('C') + local_seq.count('G')) / len(local_seq)
+  local_seq = seq[cutsite - 4 : cutsite + 4]  # 4 bases left and right of cutsite
+  gc = (local_seq.count('C') + local_seq.count('G')) / len(local_seq)  # GC ratio in local sequence of 8 bp
   alldf_dict['GC'].append(gc)
 
-  if fivebase == 'A':
-    fivebase_oh = np.array([1, 0, 0, 0])
+  if fivebase == 'A':       # if -4 is A
+    fivebase_oh = np.array([1, 0, 0, 0])      # one hot = oh
   if fivebase == 'C':
     fivebase_oh = np.array([0, 1, 0, 0])
   if fivebase == 'G':
     fivebase_oh = np.array([0, 0, 1, 0])
   if fivebase == 'T':
     fivebase_oh = np.array([0, 0, 0, 1])
-  alldf_dict['Fivebase_OH'].append(fivebase_oh)
+  alldf_dict['Fivebase_OH'].append(fivebase_oh)     # append one oh list for the -4 base
 
-  threebase = seq[cutsite]
+  threebase = seq[cutsite]        # the -3 base, immediately right of cutsite
   alldf_dict['Threebase'].append(threebase)
   if threebase == 'A':
     threebase_oh = np.array([1, 0, 0, 0])
@@ -109,10 +109,10 @@ def calc_statistics(df, exp, alldf_dict):
     threebase_oh = np.array([0, 0, 0, 1])
   alldf_dict['Threebase_OH'].append(threebase_oh)
 
-  alldf_dict['_Experiment'].append(exp)
+  alldf_dict['_Experiment'].append(exp)     # statistics (for one gRNA): % of Cas9 induced products / 1bp in frequency over all indels / 1bp frequency over ins + MH-based dels / 1bp in frequency over all Cas9 induced products / -4 base / phi total deletion score / normalised precision score / % GC in local sequence (4 bases L and R of cutsite) / -4 base one-hot encoded / -3 base / -3 base one-hot encoded / gRNA
 
 
-  return alldf_dict
+  return alldf_dict   #
 
 def prepare_statistics(data_nm):
   # Input: Dataset
@@ -127,9 +127,9 @@ def prepare_statistics(data_nm):
 
   timer = util.Timer(total = len(dataset))
   # for exp in dataset.keys()[:100]:
-  for exp in dataset.keys():
-    df = dataset[exp]
-    calc_statistics(df, exp, alldf_dict)
+  for exp in dataset.keys():              # for each gRNA in the dataset
+    df = dataset[exp]                     # collect the data for that one gRNA
+    calc_statistics(df, exp, alldf_dict)  # calc stats for that one gRNA
     timer.update()
 
   # Return a dataframe where columns are positions and rows are experiment names, values are frequencies
@@ -140,7 +140,7 @@ def prepare_statistics(data_nm):
 ##
 # Load statistics from csv, or calculate 
 ##
-def load_statistics(data_nm):
+def load_statistics(data_nm):     # receives a whole 'excel file' worth of gRNAs (not just one gRNA set of outcomes)
   print data_nm
   stats_csv_fn = out_dir + '%s.csv' % (data_nm)
   if not os.path.isfile(stats_csv_fn) or redo:
