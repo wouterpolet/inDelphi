@@ -306,15 +306,9 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
   return alldf_dict
 
 
-def convert_oh_string_to_nparray(input):
-  input = input.replace('[', '').replace(']', '')
-  nums = input.split(' ')
-  return np.array([int(s) for s in nums])
-
-
 def featurize(rate_stats, Y_nm):
-  fivebases = np.array([convert_oh_string_to_nparray(str(s)) for s in rate_stats['Fivebase_OH']])
-  threebases = np.array([convert_oh_string_to_nparray(str(s)) for s in rate_stats['Threebase_OH']])
+  fivebases = np.array([s.astype('int32') for s in rate_stats['Fivebase_OH']])
+  threebases = np.array([s.astype('int32') for s in rate_stats['Threebase_OH']])
 
   ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
   del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
@@ -323,18 +317,12 @@ def featurize(rate_stats, Y_nm):
   Y = np.array(rate_stats[Y_nm])
   print(Y_nm)
 
-  Normalizer = [(np.mean(fivebases.T[2]),
-                 np.std(fivebases.T[2])),
-                (np.mean(fivebases.T[3]),
-                 np.std(fivebases.T[3])),
-                (np.mean(threebases.T[0]),
-                 np.std(threebases.T[0])),
-                (np.mean(threebases.T[2]),
-                 np.std(threebases.T[2])),
-                (np.mean(ent),
-                 np.std(ent)),
-                (np.mean(del_scores),
-                 np.std(del_scores)),
+  Normalizer = [(np.mean(fivebases.T[2]), np.std(fivebases.T[2])),
+                (np.mean(fivebases.T[3]), np.std(fivebases.T[3])),
+                (np.mean(threebases.T[0]), np.std(threebases.T[0])),
+                (np.mean(threebases.T[2]), np.std(threebases.T[2])),
+                (np.mean(ent), np.std(ent)),
+                (np.mean(del_scores), np.std(del_scores)),
                 ]
 
   fiveG = (fivebases.T[2] - np.mean(fivebases.T[2])) / np.std(fivebases.T[2])
@@ -364,11 +352,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
   # Obtain bp stats
   bp_model = dict()
   ins_bases = ['A frac', 'C frac', 'G frac', 'T frac']
-  t_melt = pd.melt(bp_stats,
-                   id_vars=['Base'],
-                   value_vars=ins_bases,
-                   var_name='Ins Base',
-                   value_name='Fraction')
+  t_melt = pd.melt(bp_stats, id_vars=['Base'], value_vars=ins_bases, var_name='Ins Base', value_name='Fraction')
   for base in list('ACGT'):
     bp_model[base] = dict()
     mean_vals = []
