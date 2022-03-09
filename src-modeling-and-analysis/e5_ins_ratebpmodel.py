@@ -26,44 +26,46 @@ def convert_oh_string_to_nparray(input):
     nums = input.split(' ')
     return np.array([int(s) for s in nums])
 
-def featurize(rate_stats, Y_nm):
-    fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']])
+def featurize(rate_stats, Y_nm):  # rate_stats for all 5 experiments and Y_nm = 'Ins1bp/Del Ratio'
+    fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']]) # "[0 0 0 1]" -> [0 0 0 1]
     threebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Threebase_OH']])
 
-    ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
-    del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
+    ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)  # vector of precision scores for each gRNA in 5 experiments
+    del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)  # vector of deletion scores for each gRNA in 5 experiments
     print ent.shape, fivebases.shape, del_scores.shape
 
-    Y = np.array(rate_stats[Y_nm])
+    Y = np.array(rate_stats[Y_nm])  # Y_nm = 'Ins1bp/Del Ratio'
     print Y_nm
-    
-    Normalizer = [(np.mean(fivebases.T[2]),
-                      np.std(fivebases.T[2])),
-                  (np.mean(fivebases.T[3]),
-                      np.std(fivebases.T[3])),
-                  (np.mean(threebases.T[0]),
-                      np.std(threebases.T[0])),
-                  (np.mean(threebases.T[2]),
-                      np.std(threebases.T[2])),
+    # fivebase / -4 base most common ins are G and T (fig 2c)
+    # threebase / -3 base most common ins aare G and C ? (fig 2c)
+    # why do they collet G, T, A, G?
+    Normalizer = [(np.mean(fivebases.T[2]),  # 3rd column is G; fraction of G
+                      np.std(fivebases.T[2])), # 3rd column; std of G
+                  (np.mean(fivebases.T[3]), # 4th column is T; fraction of T
+                      np.std(fivebases.T[3])),  # std of T
+                  (np.mean(threebases.T[0]), # 1st column is A; fraction of A
+                      np.std(threebases.T[0])), # std of A
+                  (np.mean(threebases.T[2]), # 3rd column, fraction of G
+                      np.std(threebases.T[2])), # std of G
                   (np.mean(ent),
                       np.std(ent)),
                   (np.mean(del_scores),
                       np.std(del_scores)),
                  ]
-
+    # Normalised 5G 5T 3A 3G frequencies for all gRNAs across 5 experiments?
     fiveG = (fivebases.T[2] - np.mean(fivebases.T[2])) / np.std(fivebases.T[2])
     fiveT = (fivebases.T[3] - np.mean(fivebases.T[3])) / np.std(fivebases.T[3])
     threeA = (threebases.T[0] - np.mean(threebases.T[0])) / np.std(threebases.T[0])
     threeG = (threebases.T[2] - np.mean(threebases.T[2])) / np.std(threebases.T[2])
     gtag = np.array([fiveG, fiveT, threeA, threeG]).T
 
-    ent = (ent - np.mean(ent)) / np.std(ent)
-    del_scores = (del_scores - np.mean(del_scores)) / np.std(del_scores)
+    ent = (ent - np.mean(ent)) / np.std(ent)  # normalised precision score across 5 experiments?
+    del_scores = (del_scores - np.mean(del_scores)) / np.std(del_scores)  # normalised deletion score across 5 experiments?
 
-    X = np.concatenate(( gtag, ent, del_scores), axis = 1)
+    X = np.concatenate(( gtag, ent, del_scores), axis = 1) # concatenate as columns
     X = np.concatenate(( gtag, ent, del_scores), axis = 1)
     feature_names = ['5G', '5T', '3A', '3G', 'Entropy', 'DelScore']
-    print 'Num. samples: %s, num. features: %s' % X.shape
+    print 'Num. samples: %s, num. features: %s' % X.shape  # ? samples, 6 features
 
     return X, Y, Normalizer
 
@@ -134,6 +136,7 @@ def main(data_nm = ''):
                                                                                 # *'Threebase_OH' -3 base one-hot encoded /
                                                                                 # '_Experiment' the gRNA
     rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]       # get gRNAs with precision of del length distribution > 0.01
+
     bp_stats = fk_1bpins.load_statistics(exp)   # for all gRNAs in each exp ^: 'Frequency' the freq of 1bp ins over all Cas9 products /
                                                                             #  *'A frac' the freq of A ins over all 1bp ins
                                                                             #  *'C frac'
@@ -145,14 +148,14 @@ def main(data_nm = ''):
     exps = rate_stats['_Experiment']
 
     if 'DisLib' in exp:
-      crit = (rate_stats['_Experiment'] >= 73) & (rate_stats['_Experiment'] <= 300)
+      crit = (rate_stats['_Experiment'] >= 73) & (rate_stats['_Experiment'] <= 300)     # for gRNAs 73-300
       rs = rate_stats[crit]
-      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)
+      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)                   # get their rate stats
 
-      crit = (rate_stats['_Experiment'] >= 16) & (rate_stats['_Experiment'] <= 72)
+      crit = (rate_stats['_Experiment'] >= 16) & (rate_stats['_Experiment'] <= 72)      # for gRNAs 16-72
       rs = rate_stats[crit]
-      rs = rs[rs['Ins1bp Ratio'] < 0.3] # remove outliers
-      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)
+      rs = rs[rs['Ins1bp Ratio'] < 0.3] # remove outliers                               # get only those meeting this condition
+      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)                   # also get their rate stats
 
       crit = (bp_stats['_Experiment'] >= 73) & (bp_stats['_Experiment'] <= 300)
       rs = bp_stats[crit]
@@ -160,7 +163,7 @@ def main(data_nm = ''):
 
       crit = (bp_stats['_Experiment'] >= 16) & (bp_stats['_Experiment'] <= 72)
       rs = bp_stats[crit]
-      all_bp_stats = all_bp_stats.append(rs, ignore_index = True)
+      all_bp_stats = all_bp_stats.append(rs, ignore_index = True)                       # and get bp stats too
 
     elif 'VO' in exp or 'Lib1' in exp:
       all_rate_stats = all_rate_stats.append(rate_stats, ignore_index = True)
@@ -168,8 +171,8 @@ def main(data_nm = ''):
 
     print exp, len(all_rate_stats)
 
-  X, Y, Normalizer = featurize(all_rate_stats, 'Ins1bp/Del Ratio')
-  generate_models(X, Y, all_bp_stats, Normalizer)
+  X, Y, Normalizer = featurize(all_rate_stats, 'Ins1bp/Del Ratio')      # for all 5 experiments, pass their rate stats
+  generate_models(X, Y, all_bp_stats, Normalizer)                       # for all 5 experiments, pass their bp stats
 
   return
 
