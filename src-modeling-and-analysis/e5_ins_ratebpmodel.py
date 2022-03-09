@@ -122,7 +122,7 @@ def main(data_nm = ''):
   all_bp_stats = pd.DataFrame()  
   for exp in exps:
     rate_stats = fi2_ins_ratio.load_statistics(exp) #for all gRNAs in each exp ^: ' Editing Rate' % of Cas9 induced products /
-                                                                                # 'Ins1bp/Del Ratio' 1bp in frequency over all indels /
+                                                                                # *'Ins1bp/Del Ratio' 1bp in frequency over all indels /
                                                                                 # 'Ins1bp/MHDel Ratio' 1bp frequency over ins + MH-based dels /
                                                                                 # 'Ins1bp Ratio' 1bp in frequency over all Cas9 induced products /
                                                                                 # *'Fivebase' the -4 base (yes, the -4 base) /
