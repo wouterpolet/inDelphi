@@ -623,7 +623,7 @@ def remaster_aligns(inp_fn, data):
 ##
 def gen_qsubs():
   # Generate qsub shell scripts and commands for easy parallelization
-  print 'Generating qsub scripts...'
+  print('Generating qsub scripts...')
   qsubs_dir = _config.QSUBS_DIR + NAME + '/'
   util.ensure_dir_exists(qsubs_dir)
   qsub_commands = []
@@ -648,13 +648,13 @@ def gen_qsubs():
   with open(qsubs_dir + '_commands.txt', 'w') as f:
     f.write('\n'.join(qsub_commands))
 
-  print 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir)
+  print( 'Wrote %s shell scripts to %s' % (num_scripts, qsubs_dir))
   return
 
 @util.time_dec
 def main(nm = '', start = '', end = ''):
-  print NAME  
-  print nm
+  print(NAME)
+  print(nm)
 
   if nm == '' and start == '' and end == '':
     gen_qsubs()
@@ -664,9 +664,9 @@ def main(nm = '', start = '', end = ''):
   out_dir = out_place + nm +'/'
   util.ensure_dir_exists(out_dir)
 
-  print 'Preparing alignment output directories...'
+  print('Preparing alignment output directories...')
   prepare_align_outdirs(out_dir, start, end)
-  print 'Done'
+  print('Done')
 
   global expected_cutsite
   expected_cutsite = len('TCCGTGCTGTAACGAAAGGATGGGTGCGACGCGTCAT') + 27

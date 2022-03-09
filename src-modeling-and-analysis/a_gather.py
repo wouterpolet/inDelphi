@@ -150,7 +150,7 @@ def gather(inp_dir, out_dir):
 ##
 @util.time_dec
 def main(inp_dir, out_dir):
-  print NAME  
+  print(NAME)
   util.ensure_dir_exists(out_dir)
 
   gather(inp_dir, out_dir)

@@ -105,7 +105,7 @@ out_dir = curr_dir + 'Libraries/'
 for lib_name in sorted(libraries):
   lib_d = libraries[lib_name]
   d = pd.DataFrame(lib_d)
-  print 'Wrote library %s with shape %s' % (lib_name, d.shape)
+  print('Wrote library %s with shape %s' % (lib_name, d.shape))
   d = d[['Local Name', 'Name', 'Designed Name']]
   d = d.sort_values(by = 'Name')
   d.to_csv(out_dir + lib_name + '.csv', index = False)

@@ -10,4 +10,6 @@ def read_pickle_file(filename):
     return counts, del_features
 
 if __name__ == '__main__':
-    counts, del_features = read_pickle_file('../in/dataset.pkl')
+    counts1, del_features1 = read_pickle_file('../in/dataset.pkl')
+    counts, del_features = read_pickle_file('../in/U2OS.pkl')
+    print('testing')
