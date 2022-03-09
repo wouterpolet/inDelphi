@@ -200,11 +200,15 @@ def prepare_statistics(data_nm):
   ins_ratio_df = defaultdict(list)
 
   timer = util.Timer(total=len(data_nm))
-  exps = data_nm['Sample_Name'].unique()
+  exps = data_nm['Sample_Name'].unique()[:10]
+
+  data_nm['delta'] = data_nm['Indel'].str.extract(r'(\d+)', expand=True)
+  data_nm['nucleotide'] = data_nm['Indel'].str.extract(r'([A-Z]+)', expand=True)
+  data_nm['delta'] = data_nm['delta'].astype('int32')
 
   for id, exp in enumerate(exps):
     exp_data = data_nm[data_nm['Sample_Name'] == exp]
-    # calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df)
+    calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df)
     calc_1bp_ins_statistics(exp_data, exp, bp_ins_df)
     timer.update()
 
@@ -214,27 +218,48 @@ def prepare_statistics(data_nm):
   return ins_stat, bp_stat
 
 
-def calc_ins_ratio_statistics(df, exp, alldf_dict):
+def calc_ins_ratio_statistics(all_data, exp, alldf_dict):
   # Calculate statistics on df, saving to alldf_dict
   # Deletion positions
-  is_ins_or_del = df['Type'].isin(['DELETION', 'INSERTION'])
-  # Denominator is ins
-  total_ins_del_counts = sum(df[is_ins_or_del]['countEvents'])
+  total_ins_del_counts = sum(all_data['countEvents'])
   if total_ins_del_counts <= 1000:
     return
 
-  editing_rate = 0
-  ins_count = 0
-  del_count = 0
-  mhdel_count = 0
-  ins_ratio = 0
-  fivebase = 0
-  del_score = 0
-  norm_entropy = 0
-  gc = 0
-  fivebase_oh = 0
-  threebase = 0
-  threebase_oh = 0
+  editing_rate = 1 # always 1 since sum(in or del) / sum(in or del which aren't noise)
+  ins_count = sum(all_data[(all_data['Type'] == 'INSERTION') & (all_data['delta'] == 1)]['countEvents'])
+  del_count = sum(all_data[all_data['Type'] == 'DELETION']['countEvents']) # need to check - Indel with Mismatches
+  mhdel_count = sum(all_data[(all_data['Type'] == 'DELETION') & (all_data['homologyLength'] != 0)]['countEvents']) # need to check - Indel with Mismatches
+
+  ins_ratio = ins_count / total_ins_del_counts
+  fivebase = exp[len(exp)-4]
+
+  del_score = 0.02 #TODO need to find deletion score function(total_deletion_score) - maybe c6_polish.py?
+  norm_entropy = 0.02 #TODO need to find deletion length distribution function(deletion_length_distribution) - maybe c6_polish.py?
+
+  # local_seq = exp[len(exp) - 4:len(exp) + 4] # TODO - fix - +4 will fail - need to get sequence from libA.txt
+  local_seq = exp[len(exp) - 4:len(exp)]
+  gc = (local_seq.count('C') + local_seq.count('G')) / len(local_seq)
+
+  if fivebase == 'A':
+    fivebase_oh = np.array([1, 0, 0, 0])
+  if fivebase == 'C':
+    fivebase_oh = np.array([0, 1, 0, 0])
+  if fivebase == 'G':
+    fivebase_oh = np.array([0, 0, 1, 0])
+  if fivebase == 'T':
+    fivebase_oh = np.array([0, 0, 0, 1])
+
+  threebase = exp[len(exp)-3]
+
+  if threebase == 'A':
+    threebase_oh = np.array([1, 0, 0, 0])
+  if threebase == 'C':
+    threebase_oh = np.array([0, 1, 0, 0])
+  if threebase == 'G':
+    threebase_oh = np.array([0, 0, 1, 0])
+  if threebase == 'T':
+    threebase_oh = np.array([0, 0, 0, 1])
+
   alldf_dict['Editing Rate'].append(editing_rate)
   alldf_dict['Ins1bp/Del Ratio'].append(ins_count / (del_count + ins_count))
   alldf_dict['Ins1bp/MHDel Ratio'].append(ins_count / (mhdel_count + ins_count))
@@ -256,12 +281,6 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
   all_data['Frequency'] = all_data['countEvents'].div(total_count)
 
   insertions = all_data[all_data['Type'] == 'INSERTION']
-
-  # TODO check if this code can be moved before
-  insertions['delta'] = insertions['Indel'].str.extract(r'(\d+)', expand=True)
-  insertions['nucleotide'] = insertions['Indel'].str.extract(r'([A-Z]+)', expand=True)
-  insertions['delta'] = insertions['delta'].astype('int32')
-
   insertions = insertions[insertions['delta'] == 1]
 
   if sum(insertions['countEvents']) <= 100:
@@ -278,7 +297,7 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
   alldf_dict['G frac'].append(g_frac)
   alldf_dict['T frac'].append(t_frac)
 
-  fivebase = exp[len(exp)-4:len(exp)]
+  fivebase = exp[len(exp)-4]
   alldf_dict['Base'].append(fivebase)
 
   alldf_dict['_Experiment'].append(exp) # TODO check if _Experiment can be removed
@@ -361,19 +380,10 @@ def generate_models(X, Y, bp_stats, Normalizer):
 
 
 def knn(merged):
-  # exps = ['VO-spacers-HEK293-48h-controladj',
-  #         'VO-spacers-K562-48h-controladj',
-  #         'DisLib-mES-controladj',
-  #         'DisLib-U2OS-controladj',
-  #         'Lib1-mES-controladj'
-  #         ]
-
-  all_rate_stats = pd.DataFrame()
-  all_bp_stats = pd.DataFrame()
   rate_stats, bp_stats = load_statistics(merged)
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
   X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
-  generate_models(X, Y, all_bp_stats, Normalizer)
+  generate_models(X, Y, bp_stats, Normalizer)
 
 
 def predict_all_items():
