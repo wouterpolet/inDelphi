@@ -1,22 +1,29 @@
 import os, datetime
 import pickle
+from collections import defaultdict
+
 import pandas as pd
 from autograd import grad
 import autograd.numpy as np
 import autograd.numpy.random as npr
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsRegressor
 
 import _config, _predict
 from mylib import util
-from d2_model import alphabetize, count_num_folders, print_and_log, save_train_test_names\
+from d2_model import alphabetize, count_num_folders, print_and_log, save_train_test_names \
   , init_random_params, main_objective, rsq, save_parameters, adam_minmin
 
-import fi2_ins_ratio
-import fk_1bpins
+import warnings
+from pandas.core.common import SettingWithCopyWarning
+warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
-def parse_data(counts, del_features):
-  merged = pd.concat([counts, del_features], axis=1)
+# import fi2_ins_ratio
+# import fk_1bpins
+
+
+def parse_data(merged):
   deletions = merged[merged['Type'] == 'DELETION']
   deletions = deletions.reset_index()
 
@@ -33,6 +40,7 @@ def parse_data(counts, del_features):
     mh_exp_data = microhomologies[microhomologies['Sample_Name'] == exp][
       ['countEvents', 'homologyLength', 'homologyGCContent', 'Size']]
 
+    # Normalize Counts
     total_count = sum(mh_exp_data['countEvents'])
     mh_exp_data['countEvents'] = mh_exp_data['countEvents'].div(total_count)
 
@@ -54,6 +62,7 @@ def parse_data(counts, del_features):
 
   return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
+
 def initialize_files_and_folders():
   # Set output location of model & params
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
@@ -73,6 +82,7 @@ def initialize_files_and_folders():
 
   return out_dir, log_fn, out_dir_params, out_letters
 
+
 def initialize_model():
   # Model Settings & params
   seed = npr.RandomState(1)
@@ -81,9 +91,11 @@ def initialize_model():
   nn2_layer_sizes = [1, 16, 16, 1]
   return seed, nn_layer_sizes, nn2_layer_sizes
 
+
 def read_data(file):
   master_data = pickle.load(open(file, 'rb'))
   return master_data['counts'], master_data['del_features']
+
 
 def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters):
   param_scale = 0.1
@@ -121,7 +133,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
     te1_rsq, te2_rsq = rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test, len(INP_test), seed)
 
     out_line = ' %s  | %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t|' % (
-    iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
+      iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
     print_and_log(out_line, log_fn)
 
     if iter % 20 == 0:
@@ -137,21 +149,20 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
 
     return None
 
-  optimized_params = adam_minmin(both_objective_grad, init_nn_params, init_nn2_params, step_size=step_size, num_iters=num_epochs, callback=print_perf)
+  optimized_params = adam_minmin(both_objective_grad, init_nn_params, init_nn2_params, step_size=step_size,
+                                 num_iters=num_epochs, callback=print_perf)
 
-def neural_networks():
+
+def neural_networks(merged):
   seed, nn_layer_sizes, nn2_layer_sizes = initialize_model()
-
-  print_and_log("Loading data...", log_fn)
-  counts, del_features = read_data('../in/' + 'dataset.pkl')
-  [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(counts, del_features)
+  [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(merged)
 
   print_and_log("Parsing data...", log_fn)
   INP = []
   for mhl, gcf in zip(mh_lens, gc_fracs):
-    inp_point = np.array([mhl, gcf]).T   # N * 2
+    inp_point = np.array([mhl, gcf]).T  # N * 2
     INP.append(inp_point)
-  INP = np.array(INP)   # 2000 * N * 2
+  INP = np.array(INP)  # 2000 * N * 2
   # Neural network considers each N * 2 input, transforming it into N * 1 output.
   OBS = np.array(freqs)
   OBS2 = np.array(dl_freqs)
@@ -162,50 +173,206 @@ def neural_networks():
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
-  train_parameters(ans, out_dir_params, seed, nn_layer_sizes, nn2_layer_sizes, out_letters)
+  train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
 
-def knn():
-  exps = ['VO-spacers-HEK293-48h-controladj',
-          'VO-spacers-K562-48h-controladj',
-          'DisLib-mES-controladj',
-          'DisLib-U2OS-controladj',
-          'Lib1-mES-controladj'
-         ]
+
+def load_statistics(data_nm):
+  stats_csv_1, stats_csv_2 = prepare_statistics(data_nm)
+
+  # if not os.path.isfile(stats_csv_fn):
+  #   print('Running statistics from scratch...')
+  #   stats_csv_1, stats_csv_2 = prepare_statistics(data_nm)
+  #   # TODO: fix here - file override eachother
+  #   stats_csv_1.to_csv(stats_csv_fn)
+  #   stats_csv_2.to_csv(stats_csv_fn)
+  # else:
+  #   print('Getting statistics from file...')
+  #   stats_csv = pd.read_csv(stats_csv_fn, index_col=0)
+  print('Done')
+  return stats_csv_1, stats_csv_2
+
+
+def prepare_statistics(data_nm):
+  # Input: Dataset
+  # Output: Uniformly processed dataset, requiring minimal processing for plotting but ideally enabling multiple plots
+  # Calculate statistics associated with each experiment by name
+  bp_ins_df = defaultdict(list)
+  ins_ratio_df = defaultdict(list)
+
+  timer = util.Timer(total=len(data_nm))
+  exps = data_nm['Sample_Name'].unique()
+
+  for id, exp in enumerate(exps):
+    exp_data = data_nm[data_nm['Sample_Name'] == exp]
+    # calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df)
+    calc_1bp_ins_statistics(exp_data, exp, bp_ins_df)
+    timer.update()
+
+  # Return a dataframe where columns are positions and rows are experiment names, values are frequencies
+  ins_stat = pd.DataFrame(ins_ratio_df)
+  bp_stat = pd.DataFrame(bp_ins_df)
+  return ins_stat, bp_stat
+
+
+def calc_ins_ratio_statistics(df, exp, alldf_dict):
+  # Calculate statistics on df, saving to alldf_dict
+  # Deletion positions
+  is_ins_or_del = df['Type'].isin(['DELETION', 'INSERTION'])
+  # Denominator is ins
+  total_ins_del_counts = sum(df[is_ins_or_del]['countEvents'])
+  if total_ins_del_counts <= 1000:
+    return
+
+  editing_rate = 0
+  ins_count = 0
+  del_count = 0
+  mhdel_count = 0
+  ins_ratio = 0
+  fivebase = 0
+  del_score = 0
+  norm_entropy = 0
+  gc = 0
+  fivebase_oh = 0
+  threebase = 0
+  threebase_oh = 0
+  alldf_dict['Editing Rate'].append(editing_rate)
+  alldf_dict['Ins1bp/Del Ratio'].append(ins_count / (del_count + ins_count))
+  alldf_dict['Ins1bp/MHDel Ratio'].append(ins_count / (mhdel_count + ins_count))
+  alldf_dict['Ins1bp Ratio'].append(ins_ratio)
+  alldf_dict['Fivebase'].append(fivebase)
+  alldf_dict['Del Score'].append(del_score)
+  alldf_dict['Entropy'].append(norm_entropy)
+  alldf_dict['GC'].append(gc)
+  alldf_dict['Fivebase_OH'].append(fivebase_oh)
+  alldf_dict['Threebase'].append(threebase)
+  alldf_dict['Threebase_OH'].append(threebase_oh)
+  alldf_dict['_Experiment'].append(exp)
+  return alldf_dict
+
+
+def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
+  # Normalize Counts
+  total_count = sum(all_data['countEvents'])
+  all_data['Frequency'] = all_data['countEvents'].div(total_count)
+
+  insertions = all_data[all_data['Type'] == 'INSERTION']
+
+  # TODO check if this code can be moved before
+  insertions['delta'] = insertions['Indel'].str.extract(r'(\d+)', expand=True)
+  insertions['nucleotide'] = insertions['Indel'].str.extract(r'([A-Z]+)', expand=True)
+  insertions['delta'] = insertions['delta'].astype('int32')
+
+  insertions = insertions[insertions['delta'] == 1]
+
+  if sum(insertions['countEvents']) <= 100:
+    return
+
+  freq = sum(insertions['Frequency']) # TODO check if Frequency can be removed
+  a_frac = sum(insertions[insertions['nucleotide'] == 'A']['Frequency']) / freq
+  c_frac = sum(insertions[insertions['nucleotide'] == 'C']['Frequency']) / freq
+  g_frac = sum(insertions[insertions['nucleotide'] == 'G']['Frequency']) / freq
+  t_frac = sum(insertions[insertions['nucleotide'] == 'T']['Frequency']) / freq
+  alldf_dict['Frequency'].append(freq)
+  alldf_dict['A frac'].append(a_frac)
+  alldf_dict['C frac'].append(c_frac)
+  alldf_dict['G frac'].append(g_frac)
+  alldf_dict['T frac'].append(t_frac)
+
+  fivebase = exp[len(exp)-4:len(exp)]
+  alldf_dict['Base'].append(fivebase)
+
+  alldf_dict['_Experiment'].append(exp) # TODO check if _Experiment can be removed
+  return alldf_dict
+
+
+def featurize(rate_stats, Y_nm):
+  fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']])
+  threebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Threebase_OH']])
+
+  ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
+  del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
+  print(ent.shape, fivebases.shape, del_scores.shape)
+
+  Y = np.array(rate_stats[Y_nm])
+  print(Y_nm)
+
+  Normalizer = [(np.mean(fivebases.T[2]),
+                 np.std(fivebases.T[2])),
+                (np.mean(fivebases.T[3]),
+                 np.std(fivebases.T[3])),
+                (np.mean(threebases.T[0]),
+                 np.std(threebases.T[0])),
+                (np.mean(threebases.T[2]),
+                 np.std(threebases.T[2])),
+                (np.mean(ent),
+                 np.std(ent)),
+                (np.mean(del_scores),
+                 np.std(del_scores)),
+                ]
+
+  fiveG = (fivebases.T[2] - np.mean(fivebases.T[2])) / np.std(fivebases.T[2])
+  fiveT = (fivebases.T[3] - np.mean(fivebases.T[3])) / np.std(fivebases.T[3])
+  threeA = (threebases.T[0] - np.mean(threebases.T[0])) / np.std(threebases.T[0])
+  threeG = (threebases.T[2] - np.mean(threebases.T[2])) / np.std(threebases.T[2])
+  gtag = np.array([fiveG, fiveT, threeA, threeG]).T
+
+  ent = (ent - np.mean(ent)) / np.std(ent)
+  del_scores = (del_scores - np.mean(del_scores)) / np.std(del_scores)
+
+  X = np.concatenate((gtag, ent, del_scores), axis=1)
+  X = np.concatenate((gtag, ent, del_scores), axis=1)
+  feature_names = ['5G', '5T', '3A', '3G', 'Entropy', 'DelScore']
+  print('Num. samples: %s, num. features: %s' % X.shape)
+
+  return X, Y, Normalizer
+
+
+def generate_models(X, Y, bp_stats, Normalizer):
+  # Train rate model
+  model = KNeighborsRegressor()
+  model.fit(X, Y)
+  with open(out_dir + 'rate_model_v2.pkl', 'w') as f:
+    pickle.dump(model, f)
+
+  # Obtain bp stats
+  bp_model = dict()
+  ins_bases = ['A frac', 'C frac', 'G frac', 'T frac']
+  t_melt = pd.melt(bp_stats,
+                   id_vars = ['Base'],
+                   value_vars = ins_bases,
+                   var_name = 'Ins Base',
+                   value_name = 'Fraction')
+  for base in list('ACGT'):
+    bp_model[base] = dict()
+    mean_vals = []
+    for ins_base in ins_bases:
+      crit = (t_melt['Base'] == base) & (t_melt['Ins Base'] == ins_base)
+      mean_vals.append(float(np.mean(t_melt[crit])))
+    for bp, freq in zip(list('ACGT'), mean_vals):
+      bp_model[base][bp] = freq / sum(mean_vals)
+
+  with open(out_dir + 'bp_model_v2.pkl', 'w') as f:
+    pickle.dump(bp_model, f)
+
+  with open(out_dir + 'Normalizer_v2.pkl', 'w') as f:
+    pickle.dump(Normalizer, f)
+
+  return
+
+
+def knn(merged):
+  # exps = ['VO-spacers-HEK293-48h-controladj',
+  #         'VO-spacers-K562-48h-controladj',
+  #         'DisLib-mES-controladj',
+  #         'DisLib-U2OS-controladj',
+  #         'Lib1-mES-controladj'
+  #         ]
 
   all_rate_stats = pd.DataFrame()
   all_bp_stats = pd.DataFrame()
-  for exp in exps:
-    # TODO: Check re statistics - this might be an issue
-    rate_stats = fi2_ins_ratio.load_statistics(exp)
-    rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
-    bp_stats = fk_1bpins.load_statistics(exp)
-    exps = rate_stats['_Experiment']
-
-    if 'DisLib' in exp:
-      crit = (rate_stats['_Experiment'] >= 73) & (rate_stats['_Experiment'] <= 300)
-      rs = rate_stats[crit]
-      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)
-
-      crit = (rate_stats['_Experiment'] >= 16) & (rate_stats['_Experiment'] <= 72)
-      rs = rate_stats[crit]
-      rs = rs[rs['Ins1bp Ratio'] < 0.3] # remove outliers
-      all_rate_stats = all_rate_stats.append(rs, ignore_index = True)
-
-      crit = (bp_stats['_Experiment'] >= 73) & (bp_stats['_Experiment'] <= 300)
-      rs = bp_stats[crit]
-      all_bp_stats = all_bp_stats.append(rs, ignore_index = True)
-
-      crit = (bp_stats['_Experiment'] >= 16) & (bp_stats['_Experiment'] <= 72)
-      rs = bp_stats[crit]
-      all_bp_stats = all_bp_stats.append(rs, ignore_index = True)
-
-    elif 'VO' in exp or 'Lib1' in exp:
-      all_rate_stats = all_rate_stats.append(rate_stats, ignore_index = True)
-      all_bp_stats = all_bp_stats.append(bp_stats, ignore_index = True)
-
-    print(exp, len(all_rate_stats))
-
-  X, Y, Normalizer = featurize(all_rate_stats, 'Ins1bp/Del Ratio')
+  rate_stats, bp_stats = load_statistics(merged)
+  rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
+  X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
   generate_models(X, Y, all_bp_stats, Normalizer)
 
 
@@ -216,22 +383,20 @@ def predict_all_items():
   # _predict.predict_all()
 
 
-
-
 if __name__ == '__main__':
+  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders()
+  print_and_log("Loading data...", log_fn)
+  counts, del_features = read_data('../in/' + 'dataset.pkl')
+  merged = pd.concat([counts, del_features], axis=1)
+  merged = merged.reset_index()
   '''
   Neural Network (MH)
   Model Creation, Training & Optimization
   '''
-  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders()
-  neural_networks()
+  # neural_networks(merged)
 
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
-  knn()
-
-
-
-
+  knn(merged)
