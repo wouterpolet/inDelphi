@@ -98,17 +98,24 @@ def generate_models(X, Y, bp_stats, Normalizer):
     bp_model[base] = dict()             # create a dict 'N': {..}
     mean_vals = []
     for ins_base in ins_bases:          # for each 'N frac'
-      crit = (t_melt['Base'] == base) & (t_melt['Ins Base'] == ins_base)
-      mean_vals.append(float(np.mean(t_melt[crit])))
-    for bp, freq in zip(list('ACGT'), mean_vals):
-      bp_model[base][bp] = freq / sum(mean_vals)
-
+      crit = (t_melt['Base'] == base) & (t_melt['Ins Base'] == ins_base)    # e.g. for all gRNAs w/ -4 b as Ts
+      mean_vals.append(float(np.mean(t_melt[crit])))                        #      append avg. freq of ins's as N={A,C,G,T}
+    for bp, freq in zip(list('ACGT'), mean_vals):                           #      into [ , , , ]
+      bp_model[base][bp] = freq / sum(mean_vals)                            #            A C G T
+                                                                            # line 104 normalises the avg. freqs
   with open(out_dir + 'bp_model_v2.pkl', 'w') as f:
-    pickle.dump(bp_model, f)                        # {'A': {..}, 'C': {..}, 'G': {..}, 'T': {..}}
+    pickle.dump(bp_model, f)                        # -4 base
+                                                    #
+                                                    # {'A': {'A': .., 'C': .., 'G': .., 'T': ..},
+                                                    #  'C': {'A': .., 'C': .., 'G': .., 'T': ..},
+                                                    #  'G': {'A': .., 'C': .., 'G': .., 'T': ..},
+                                                    #  'T': {'A': .., 'C': .., 'G': .., 'T': ..} }
+                                                    # each .. is the norm.'d avg. freq. of that N when -4 base is 'N'
+                                                    # this dict represents all gRNAs
 
   with open(out_dir + 'Normalizer_v2.pkl', 'w') as f:
     pickle.dump(Normalizer, f)
-
+      
   return
 
 ##
