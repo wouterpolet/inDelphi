@@ -105,7 +105,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
                                                                             # line 104 normalises the avg. freqs
   with open(out_dir + 'bp_model_v2.pkl', 'w') as f:
     pickle.dump(bp_model, f)                        # -4 base
-                                                    #
+                                                    #        inserted base
                                                     # {'A': {'A': .., 'C': .., 'G': .., 'T': ..},
                                                     #  'C': {'A': .., 'C': .., 'G': .., 'T': ..},
                                                     #  'G': {'A': .., 'C': .., 'G': .., 'T': ..},
