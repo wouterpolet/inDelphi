@@ -221,6 +221,7 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       ans = _predict.predict_all(seq_context, local_cutsite,            # seq_context is a tuple/pair? of seq and shuffled_seq
                                  rate_model, bp_model, normalizer)      # trained k-nn, bp summary dict, normalizer
       pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans
+      # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
 
       # Save predictions
       # del_df_out_fn = df_out_dir + '%s_%s_%s.csv' % (unique_id, 'dels', shuffled_nm)

@@ -19,11 +19,11 @@ test_exps = None
 def get_gc_frac(seq):
   return (seq.count('C') + seq.count('G')) / len(seq)
 
-def find_microhomologies(left, right):
+def find_microhomologies(left, right):            # for a given resection length (resected left and right strands)
   start_idx = max(len(right) - len(left), 0)
   mhs = []
   mh = [start_idx]
-  for idx in range(min(len(right), len(left))):
+  for idx in range(min(len(right), len(left))):   # iterate over the shortest
     if left[idx] == right[start_idx + idx]:
       mh.append(start_idx + idx + 1)
     else:
@@ -32,10 +32,10 @@ def find_microhomologies(left, right):
   mhs.append(mh)
   return mhs
 
-def featurize(seq, cutsite, DELLEN_LIMIT = 60):
+def featurize(seq, cutsite, DELLEN_LIMIT = 60):             # for each gRNA sequence
   # print 'Using DELLEN_LIMIT = %s' % (DELLEN_LIMIT)
   mh_lens, gc_fracs, gt_poss, del_lens = [], [], [], []
-  for del_len in range(1, DELLEN_LIMIT):
+  for del_len in range(1, DELLEN_LIMIT):                    # for each deletion length 1:60
     left = seq[cutsite - del_len : cutsite]
     right = seq[cutsite : cutsite + del_len]
 
