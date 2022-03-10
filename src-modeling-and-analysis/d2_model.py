@@ -66,7 +66,8 @@ def nn_match_score_function(params, inputs):
 ##
 def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs):
   LOSS = 0
-  for idx in range(len(inp)):
+  total_phi = []   # 1961 x 1
+  for idx in range(len(inp)):       # for each gRNA
 
     ##
     # MH-based deletion frequencies
@@ -74,6 +75,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     mh_scores = nn_match_score_function(nn_params, inp[idx])
     Js = np.array(del_lens[idx])
     unnormalized_fq = np.exp(mh_scores - 0.25*Js)
+    mh_phi_total = np.sum(unnormalized_fq)
     
     # Add MH-less contribution at full MH deletion lengths
     mh_vector = inp[idx].T[0]
@@ -112,6 +114,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     dls = dls.reshape(28, 1)
     nn2_scores = nn_match_score_function(nn2_params, dls)
     unnormalized_nn2 = np.exp(nn2_scores - 0.25*np.arange(1, 28+1))
+    mh_less_phi_total = np.sum(unnormalized_nn2)
 
     # iterate through del_lens vector, adding mh_scores (already computed above) to the correct index
     mh_contribution = np.zeros(28,)
@@ -135,10 +138,13 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     rsq = (pearson_numerator/pearson_denom)**2
     neg_rsq = rsq * -1
     LOSS += neg_rsq
+    mh_total = mh_phi_total + mh_less_phi_total
+    total_phi.append(mh_total)
+
 
     # L2-Loss
     # LOSS += np.sum((normalized_fq - obs[idx])**2)
-  return LOSS / num_samples
+  return LOSS / num_samples, total_phi
 
 ##
 # Regularization 

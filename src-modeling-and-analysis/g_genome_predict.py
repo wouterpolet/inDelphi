@@ -97,8 +97,8 @@ def find_cutsites_and_predict(inp_fn, data_nm, split):
   # Calculate statistics on df, saving to alldf_dict
   # Deletion positions
 
-  _predict.init_model(run_iter = 'aax', param_iter = 'aag')
-  dd = defaultdict(list)
+  _predict.init_model(run_iter = 'aax', param_iter = 'aag') # load nn_params, nn2_params and functions from d2_model
+  dd = defaultdict(list)            # dictionary with values as list
   dd_shuffled = defaultdict(list)
 
   if data_nm == 'exons':
@@ -108,8 +108,8 @@ def find_cutsites_and_predict(inp_fn, data_nm, split):
 
   num_flushed = 0
   timer = util.Timer(total = util.line_count(inp_fn))
-  with open(inp_fn) as f:
-    for i, line in enumerate(f):
+  with open(inp_fn) as f:         # open exons or introns database
+    for i, line in enumerate(f):  # for each exon / intron in the database
       if i % 2 == 0:
         header = line.strip()
       if i % 2 == 1:
@@ -120,7 +120,7 @@ def find_cutsites_and_predict(inp_fn, data_nm, split):
         if len(sequence) > 500000:
           continue
 
-        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)
+        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)   # predict
         dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
 
       if (i - 1) % 50 == 0 and i > 1:
@@ -158,21 +158,21 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
   # Input: A specific sequence
   # Find all Cas9 cutsites, gather metadata, and run inDelphi
   try:
-    ans = parse_header(header)
-    gene_kgid, chrom, start, end = ans
+    ans = parse_header(header)          # header is of FASTA type from NCBI
+    gene_kgid, chrom, start, end = ans  # gene id in database / chromosome nunber / start of seq - 30 / end of sequence + 30
   except:
     return
 
-  for idx in range(len(sequence)):
+  for idx in range(len(sequence)):        # for each base in the sequence
     seq = ''
-    if sequence[idx : idx+2] == 'CC':
-      cutsite = idx + 6
-      seq = sequence[cutsite - 30 : cutsite + 30]
-      seq = compbio.reverse_complement(seq)
+    if sequence[idx : idx+2] == 'CC':             # if on top strand find CC
+      cutsite = idx + 6                           # cut site of complementary GG is +6 away
+      seq = sequence[cutsite - 30 : cutsite + 30] # get sequence 30bp L and R of cutsite
+      seq = compbio.reverse_complement(seq)       # compute reverse strand (complimentary)
       orientation = '-'
-    if sequence[idx : idx+2] == 'GG':
-      cutsite = idx - 4
-      seq = sequence[cutsite - 30 : cutsite + 30]
+    if sequence[idx : idx+2] == 'GG':             # if GG on top strand
+      cutsite = idx - 4                           # cut site is -4 away
+      seq = sequence[cutsite - 30 : cutsite + 30] # get seq 30bp L and R of cutsite
       orientation = '+'
     if seq == '':
       continue
@@ -196,8 +196,8 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
     random.shuffle(seq_nogg)
     shuffled_seq = ''.join(seq_nogg[:34]) + 'GG' + ''.join(seq_nogg[36:])
 
-    for d, seq_context, shuffled_nm in zip([dd, dd_shuffled], 
-                                           [seq, shuffled_seq],
+    for d, seq_context, shuffled_nm in zip([dd, dd_shuffled],     # dictionaries with values as list
+                                           [seq, shuffled_seq],   # exon/intron sequence and shuffled sequence
                                            ['wt', 'shuffled']):
       #
       # Store metadata statistics
@@ -207,6 +207,7 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       cutsite_coord = start + idx
       unique_id = '%s_%s_hg38_%s_%s_%s' % (gene_kgid, grna, chrom, cutsite_coord, orientation)
 
+      # the SpCas9 gRNAs targeting exons and introns
       d['Sequence Context'].append(seq_context)
       d['Local Cutsite'].append(local_cutsite)
       d['Chromosome'].append(chrom)
@@ -216,9 +217,9 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       d['Gene kgID'].append(gene_kgid)
       d['Unique ID'].append(unique_id)
 
-      # Make predictions
-      ans = _predict.predict_all(seq_context, local_cutsite, 
-                                 rate_model, bp_model, normalizer)
+      # Make predictions for each SpCas9 gRNA targeting exons and introns
+      ans = _predict.predict_all(seq_context, local_cutsite,            # seq_context is a tuple/pair? of seq and shuffled_seq
+                                 rate_model, bp_model, normalizer)      # trained k-nn, bp summary dict, normalizer
       pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans
 
       # Save predictions
@@ -332,7 +333,7 @@ def main(data_nm = '', split = ''):
     return
 
   inp_fn = DEFAULT_INP_DIR + '%s_%s.fa' % (data_nm, split)
-  init_rate_bp_models()
+  init_rate_bp_models()   # load fitted k-nn model, the bp_model dict and normalizer as global vars
   find_cutsites_and_predict(inp_fn, data_nm, split)
 
   return

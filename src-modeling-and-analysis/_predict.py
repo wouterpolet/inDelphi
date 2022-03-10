@@ -215,10 +215,11 @@ def init_model(run_iter = 'aax', param_iter = 'aag'):
   param_fold = model_out_dir + '%s/parameters/' % (run_iter)
   global nn_params
   global nn2_params
-  nn_params = pickle.load(open(param_fold + '%s_nn.pkl' % (param_iter)))
-  nn2_params = pickle.load(open(param_fold + '%s_nn2.pkl' % (param_iter)))
+  nn_params = pickle.load(open(param_fold + '%s_nn.pkl' % (param_iter)))    # '/out/d2_model/aax/parameters/aag_nn.pkl'
+  nn2_params = pickle.load(open(param_fold + '%s_nn2.pkl' % (param_iter)))  # '/out/d2_model/aax/parameters/aag_nn2.pkl'
 
   model = imp.load_source('model', model_out_dir + '%s/d2_model-noautograd.py' % (run_iter))
+  #                       '       ./out/d2_model/aax/d2_model-noautograd.py'
   
   print('Done')
   return
