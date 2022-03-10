@@ -16,6 +16,7 @@ from d2_model import alphabetize, count_num_folders, print_and_log, save_train_t
 
 import warnings
 from pandas.core.common import SettingWithCopyWarning
+
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
@@ -225,16 +226,17 @@ def calc_ins_ratio_statistics(all_data, exp, alldf_dict):
   if total_ins_del_counts <= 1000:
     return
 
-  editing_rate = 1 # always 1 since sum(in or del) / sum(in or del which aren't noise)
+  editing_rate = 1  # always 1 since sum(in or del) / sum(in or del which aren't noise)
   ins_count = sum(all_data[(all_data['Type'] == 'INSERTION') & (all_data['delta'] == 1)]['countEvents'])
-  del_count = sum(all_data[all_data['Type'] == 'DELETION']['countEvents']) # need to check - Indel with Mismatches
-  mhdel_count = sum(all_data[(all_data['Type'] == 'DELETION') & (all_data['homologyLength'] != 0)]['countEvents']) # need to check - Indel with Mismatches
+  del_count = sum(all_data[all_data['Type'] == 'DELETION']['countEvents'])  # need to check - Indel with Mismatches
+  mhdel_count = sum(all_data[(all_data['Type'] == 'DELETION') & (all_data['homologyLength'] != 0)][
+                      'countEvents'])  # need to check - Indel with Mismatches
 
   ins_ratio = ins_count / total_ins_del_counts
-  fivebase = exp[len(exp)-4]
+  fivebase = exp[len(exp) - 4]
 
-  del_score = 0.02 #TODO need to find deletion score function(total_deletion_score) - maybe c6_polish.py?
-  norm_entropy = 0.02 #TODO need to find deletion length distribution function(deletion_length_distribution) - maybe c6_polish.py?
+  del_score = 0.02  # TODO need to find deletion score function(total_deletion_score) - maybe c6_polish.py?
+  norm_entropy = 0.02  # TODO need to find deletion length distribution function(deletion_length_distribution) - maybe c6_polish.py?
 
   # local_seq = exp[len(exp) - 4:len(exp) + 4] # TODO - fix - +4 will fail - need to get sequence from libA.txt
   local_seq = exp[len(exp) - 4:len(exp)]
@@ -249,7 +251,7 @@ def calc_ins_ratio_statistics(all_data, exp, alldf_dict):
   if fivebase == 'T':
     fivebase_oh = np.array([0, 0, 0, 1])
 
-  threebase = exp[len(exp)-3]
+  threebase = exp[len(exp) - 3]
 
   if threebase == 'A':
     threebase_oh = np.array([1, 0, 0, 0])
@@ -286,7 +288,7 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
   if sum(insertions['countEvents']) <= 100:
     return
 
-  freq = sum(insertions['Frequency']) # TODO check if Frequency can be removed
+  freq = sum(insertions['Frequency'])  # TODO check if Frequency can be removed
   a_frac = sum(insertions[insertions['nucleotide'] == 'A']['Frequency']) / freq
   c_frac = sum(insertions[insertions['nucleotide'] == 'C']['Frequency']) / freq
   g_frac = sum(insertions[insertions['nucleotide'] == 'G']['Frequency']) / freq
@@ -297,16 +299,16 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
   alldf_dict['G frac'].append(g_frac)
   alldf_dict['T frac'].append(t_frac)
 
-  fivebase = exp[len(exp)-4]
+  fivebase = exp[len(exp) - 4]
   alldf_dict['Base'].append(fivebase)
 
-  alldf_dict['_Experiment'].append(exp) # TODO check if _Experiment can be removed
+  alldf_dict['_Experiment'].append(exp)  # TODO check if _Experiment can be removed
   return alldf_dict
 
 
 def featurize(rate_stats, Y_nm):
-  fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']])
-  threebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Threebase_OH']])
+  fivebases = np.array([s.astype('int32') for s in rate_stats['Fivebase_OH']])
+  threebases = np.array([s.astype('int32') for s in rate_stats['Threebase_OH']])
 
   ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
   del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
@@ -315,18 +317,12 @@ def featurize(rate_stats, Y_nm):
   Y = np.array(rate_stats[Y_nm])
   print(Y_nm)
 
-  Normalizer = [(np.mean(fivebases.T[2]),
-                 np.std(fivebases.T[2])),
-                (np.mean(fivebases.T[3]),
-                 np.std(fivebases.T[3])),
-                (np.mean(threebases.T[0]),
-                 np.std(threebases.T[0])),
-                (np.mean(threebases.T[2]),
-                 np.std(threebases.T[2])),
-                (np.mean(ent),
-                 np.std(ent)),
-                (np.mean(del_scores),
-                 np.std(del_scores)),
+  Normalizer = [(np.mean(fivebases.T[2]), np.std(fivebases.T[2])),
+                (np.mean(fivebases.T[3]), np.std(fivebases.T[3])),
+                (np.mean(threebases.T[0]), np.std(threebases.T[0])),
+                (np.mean(threebases.T[2]), np.std(threebases.T[2])),
+                (np.mean(ent), np.std(ent)),
+                (np.mean(del_scores), np.std(del_scores)),
                 ]
 
   fiveG = (fivebases.T[2] - np.mean(fivebases.T[2])) / np.std(fivebases.T[2])
@@ -356,11 +352,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
   # Obtain bp stats
   bp_model = dict()
   ins_bases = ['A frac', 'C frac', 'G frac', 'T frac']
-  t_melt = pd.melt(bp_stats,
-                   id_vars = ['Base'],
-                   value_vars = ins_bases,
-                   var_name = 'Ins Base',
-                   value_name = 'Fraction')
+  t_melt = pd.melt(bp_stats, id_vars=['Base'], value_vars=ins_bases, var_name='Ins Base', value_name='Fraction')
   for base in list('ACGT'):
     bp_model[base] = dict()
     mean_vals = []
