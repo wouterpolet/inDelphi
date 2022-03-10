@@ -90,21 +90,21 @@ def generate_models(X, Y, bp_stats, Normalizer):
   # '_Experiment'   the gRNA experiment
 
   t_melt = pd.melt(bp_stats,                # for each gRNA, its -4 base and the % of nucleotide N as the 1-bp ins
-                   id_vars = ['Base'],
-                   value_vars = ins_bases, 
+                   id_vars = ['Base'],      # t_melt drawn out (example): https://bit.ly/t_melt
+                   value_vars = ins_bases,
                    var_name = 'Ins Base', 
                    value_name = 'Fraction')
-  for base in list('ACGT'):
-    bp_model[base] = dict()
+  for base in list('ACGT'):             # for each base N
+    bp_model[base] = dict()             # create a dict 'N': {..}
     mean_vals = []
-    for ins_base in ins_bases:
+    for ins_base in ins_bases:          # for each 'N frac'
       crit = (t_melt['Base'] == base) & (t_melt['Ins Base'] == ins_base)
       mean_vals.append(float(np.mean(t_melt[crit])))
     for bp, freq in zip(list('ACGT'), mean_vals):
       bp_model[base][bp] = freq / sum(mean_vals)
 
   with open(out_dir + 'bp_model_v2.pkl', 'w') as f:
-    pickle.dump(bp_model, f)
+    pickle.dump(bp_model, f)                        # {'A': {..}, 'C': {..}, 'G': {..}, 'T': {..}}
 
   with open(out_dir + 'Normalizer_v2.pkl', 'w') as f:
     pickle.dump(Normalizer, f)
