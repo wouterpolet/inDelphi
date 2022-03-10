@@ -72,15 +72,25 @@ def featurize(rate_stats, Y_nm):  # rate_stats for all 5 experiments and Y_nm = 
 def generate_models(X, Y, bp_stats, Normalizer):
   # Train rate model
   model = KNeighborsRegressor()
-  model.fit(X, Y)
+  model.fit(X, Y)  # (norm freq of -5G -5T -3A -3G + norm precision score + norm del score) VS freq of 1 bp ins over all indels
   with open(out_dir + 'rate_model_v2.pkl', 'w') as f:
     pickle.dump(model, f)
 
   # Obtain bp stats
   bp_model = dict()
   ins_bases = ['A frac', 'C frac', 'G frac', 'T frac']
-  t_melt = pd.melt(bp_stats, 
-                   id_vars = ['Base'], 
+
+  # bp_stats:
+  # 'Frequency'     the freq of 1bp ins over all Cas9 products /
+  # 'A frac'        the freq of A ins over all 1bp ins
+  # 'C frac'
+  # 'G frac'
+  # 'T frac'
+  # 'Base'          the -4 base
+  # '_Experiment'   the gRNA experiment
+
+  t_melt = pd.melt(bp_stats,                # for each gRNA, its -4 base and the % of nucleotide N as the 1-bp ins
+                   id_vars = ['Base'],
                    value_vars = ins_bases, 
                    var_name = 'Ins Base', 
                    value_name = 'Fraction')
