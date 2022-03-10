@@ -19,43 +19,57 @@ test_exps = None
 def get_gc_frac(seq):
   return (seq.count('C') + seq.count('G')) / len(seq)
 
-def find_microhomologies(left, right):            # for a given resection length (resected left and right strands)
-  start_idx = max(len(right) - len(left), 0)
+def find_microhomologies(left, right):            # for a given pair of resected left and right strands, equally long
+  start_idx = max(len(right) - len(left), 0)      # TAGATT - TATAGG = 0
   mhs = []
-  mh = [start_idx]
-  for idx in range(min(len(right), len(left))):   # iterate over the shortest
+  mh = [start_idx]                                # [0]
+  for idx in range(min(len(right), len(left))):   # for each base in the overhangs
+    # {--left[idx] == right[idx]--} = {--left[idx] complementary to reverse_right[star_idx+idx]--}
     if left[idx] == right[start_idx + idx]:
+                                                  # TAGATT    2 MHs
+                                                  # || |
+                                                  # ATATCC
+                                                  # 012345
+                                        # gt pos    123456
+                                        # MH 1 del outcome: GTGCTCTTAACTTTCACTTTATATAGGGTTAATAAATGGGAATTTATAT
+                                        # MH 2 del outcome: GTGCTCTTAACTTTCACTTTATAGAGGGTTAATAAATGGGAATTTATAT
       mh.append(start_idx + idx + 1)
     else:
       mhs.append(mh)
       mh = [start_idx + idx +1]
   mhs.append(mh)
-  return mhs
-
-def featurize(seq, cutsite, DELLEN_LIMIT = 60):             # for each gRNA sequence
-  # print 'Using DELLEN_LIMIT = %s' % (DELLEN_LIMIT)
+  return mhs                                                #                              1234567890123456789012345678901234567890123456789012345
+                                                            #                              0123456789012345678901234567890123456789012345678901234
+                                                            # MH 1 outcome:                GTGCTCTTAACTTTCACTTTATA------TAGGGTTAATAAATGGGAATTTATAT, gt pos 2, del len 6
+                                                            # MH 2 outcome:                GTGCTCTTAACTTTCACTTTATAGA------GGGTTAATAAATGGGAATTTATAT, gt pos 4, del len 6
+def featurize(seq, cutsite, DELLEN_LIMIT = 60):             # for each gRNA sequence, e.g. GTGCTCTTAACTTTCACTTTATAGATTTATAGGGTTAATAAATGGGAATTTATAT
+                                                            # cutsite 27:                  GTGCTCTTAACTTTCACTTTATAGATT
+                                                            #                                                         TATAGGGTTAATAAATGGGAATTTATAT (this is not reverse strand)
+  # print 'Using DELLEN_LIMIT = %s' % (DELLEN_LIMIT)                                                           TATCTAAATATCCCAATTATTTACCCTTAAATATA
   mh_lens, gc_fracs, gt_poss, del_lens = [], [], [], []
-  for del_len in range(1, DELLEN_LIMIT):                    # for each deletion length 1:60
-    left = seq[cutsite - del_len : cutsite]
-    right = seq[cutsite : cutsite + del_len]
+  for del_len in range(1, DELLEN_LIMIT):                    # for each deletion length 1:60, e.g. del length 6:
+    left = seq[cutsite - del_len : cutsite]                 # get 3' overhang nucleotides on the left            TAGATT
+    right = seq[cutsite : cutsite + del_len]                # and 5' overhang on the right of cutsite                  TATAGG (used to model the 3' overhang)
+                                                            #                           complementary 3' overhang:     ATATCC
 
-    mhs = find_microhomologies(left, right)
-    for mh in mhs:
-      mh_len = len(mh) - 1
-      if mh_len > 0:
-        gtpos = max(mh)
+    mhs = find_microhomologies(left, right)                 # e.g. del lengh = 6, mhs = [[0, 1, 2], [3, 4], [5], [6]]
+    for mh in mhs:                                          #                       len      3        2      1    1
+      mh_len = len(mh) - 1                                  #                       len-1    2        1      0     0
+      if mh_len > 0:                                        # i.e. if true MH
+        gtpos = max(mh)                                     # for MH1, genotype position = 2, for MH2, genotype position = 4
         gt_poss.append(gtpos)
 
-        s = cutsite - del_len + gtpos - mh_len
-        e = s + mh_len
-        mh_seq = seq[s : e]
+        s = cutsite - del_len + gtpos - mh_len              # 27 - 6 + 2 - 2 = 21, cutsite is b/w 27 and 28 (python 26 and 27), cutsite labelled at 27 on python
+        e = s + mh_len                                      # 21 + 2 = 23
+        mh_seq = seq[s : e]                                 # seq[21:23] = TA
         gc_frac = get_gc_frac(mh_seq)
 
-        mh_lens.append(mh_len)
-        gc_fracs.append(gc_frac)
-        del_lens.append(del_len)
+        mh_lens.append(mh_len)                              # 2
+        gc_fracs.append(gc_frac)                            # 0%
+        del_lens.append(del_len)                            # 6
 
-  return mh_lens, gc_fracs, gt_poss, del_lens
+  return mh_lens, gc_fracs, gt_poss, del_lens               # only MHs at each deletion length
+  #      90x1     90x1      90x1     90x1 lists
 
 ##
 # Prediction
@@ -79,10 +93,10 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   del_lens = np.array(del_len).T
   
   # Predict
-  mh_scores = model.nn_match_score_function(nn_params, pred_input)
+  mh_scores = model.nn_match_score_function(nn_params, pred_input)  # trained nn_params
   mh_scores = mh_scores.reshape(mh_scores.shape[0], 1)
   Js = del_lens.reshape(del_lens.shape[0], 1)
-  unfq = np.exp(mh_scores - 0.25*Js)
+  unfq = np.exp(mh_scores - 0.25*Js)                                # MH-NN phi for each MH
 
   # Add MH-less contribution at full MH deletion lengths
   mh_vector = np.array(mh_len)
@@ -90,12 +104,12 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   for jdx in range(len(mh_vector)):
     if del_lens[jdx] == mh_vector[jdx]:
       dl = del_lens[jdx]
-      mhless_score = model.nn_match_score_function(nn2_params, np.array(dl))
+      mhless_score = model.nn_match_score_function(nn2_params, np.array(dl))    # trained nn2_params
       mhless_score = np.exp(mhless_score - 0.25*dl)
       mask = np.concatenate([np.zeros(jdx,), np.ones(1,) * mhless_score, np.zeros(len(mh_vector) - jdx - 1,)])
       mhfull_contribution = mhfull_contribution + mask
   mhfull_contribution = mhfull_contribution.reshape(-1, 1)
-  unfq = unfq + mhfull_contribution
+  unfq = unfq + mhfull_contribution                                   # unnormalised MH deletion genotype freq distribution
 
   # Store predictions to combine with mh-less deletion preds
   pred_del_len = copy.copy(del_len)
@@ -114,13 +128,13 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   # Include MH-less contributions at non-full MH deletion lengths
   nonfull_dls = []
   for dl in range(1, 60):
-    if dl not in del_len:
+    if dl not in del_len:         # for a del length that a MH doesn't have
       nonfull_dls.append(dl)
     elif del_len.count(dl) == 1:
       idx = del_len.index(dl)
-      if mh_len[idx] != dl:
+      if mh_len[idx] != dl:       # for a del length that occurs once in MH and isn't full
         nonfull_dls.append(dl)
-    else:
+    else:                         # e.g. if it's there but occurs more than once?
         nonfull_dls.append(dl)
 
   mh_vector = np.array(mh_len)
@@ -128,19 +142,19 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
     mhless_score = model.nn_match_score_function(nn2_params, np.array(dl))
     mhless_score = np.exp(mhless_score - 0.25*dl)
 
-    unfq.append(mhless_score)
-    pred_gt_pos.append('e')
-    pred_del_len.append(dl)
+    unfq.append(mhless_score)                     # unnormalised MH deletion genotype score + MH-less scores for each unacccounted for MH-less genotype
+    pred_gt_pos.append('e')                       # gtpos = delta!
+    pred_del_len.append(dl)                       # deletion length, these 2 together make the unique tuple
 
   unfq = np.array(unfq)
   total_phi_score = float(sum(unfq))
 
-  nfq = np.divide(unfq, np.sum(unfq))  
-  pred_freq = list(nfq.flatten())
+  nfq = np.divide(unfq, np.sum(unfq))             # normalise phi scores for deletion genotypes
+  pred_freq = list(nfq.flatten())                 # number_of_dels x 1 list
 
   d = {'Length': pred_del_len, 'Genotype Position': pred_gt_pos, 'Predicted_Frequency': pred_freq}
   pred_del_df = pd.DataFrame(d)
-  pred_del_df['Category'] = 'del'
+  pred_del_df['Category'] = 'del'                 # predicted deletion genotypes: del_length, delta, freq
 
   ################################################################
   #####
