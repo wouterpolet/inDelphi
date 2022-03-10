@@ -6,13 +6,15 @@ import pandas as pd
 from autograd import grad
 import autograd.numpy as np
 import autograd.numpy.random as npr
+from autograd.misc import flatten
+
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 
-import _config, _predict
-from mylib import util
+# import _config, _predict
+import util as util
 from d2_model import alphabetize, count_num_folders, print_and_log, save_train_test_names \
-  , init_random_params, main_objective, rsq, save_parameters, adam_minmin
+  , init_random_params, rsq, save_parameters, nn_match_score_function
 
 import warnings
 from pandas.core.common import SettingWithCopyWarning
@@ -29,7 +31,7 @@ def parse_data(merged):
   deletions = deletions.reset_index()
 
   # A single value GRNA -Train until 1871
-  exps = deletions['Sample_Name'].unique()[:5]
+  exps = deletions['Sample_Name'].unique()[:10]
   # Q & A: How to determine if a deletion is MH or MH-less - length != 0
   # Question: Do we need to distinguish between MH and MH-less, if yes, how to pass diff del_len to MH-less NN
 
@@ -70,7 +72,7 @@ def initialize_files_and_folders():
   util.ensure_dir_exists(out_place)
 
   num_folds = count_num_folders(out_place)
-  out_letters = alphabetize(num_folds + 1)
+  out_letters = alphabetize(num_folds)
   out_dir = out_place + out_letters + '/'
 
   out_dir_params = out_place + out_letters + '/parameters/'
@@ -93,15 +95,167 @@ def initialize_model():
   return seed, nn_layer_sizes, nn2_layer_sizes
 
 
+def _pickle_load(file):
+  data = pickle.load(open(file, 'rb'))
+  return data
+
+
+def load_model(file):
+  return _pickle_load(file)
+
+
 def read_data(file):
-  master_data = pickle.load(open(file, 'rb'))
+  master_data = _pickle_load(file)
   return master_data['counts'], master_data['del_features']
+
+
+##
+# Objective
+##
+def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs, iter=0):
+  LOSS = 0
+  total_phi_del_freq = []  # 1961 x 1
+  for idx in range(len(inp)):  # for each gRNA
+    ##
+    # MH-based deletion frequencies
+    ##
+    mh_scores = nn_match_score_function(nn_params, inp[idx])
+    Js = np.array(del_lens[idx])
+    unnormalized_fq = np.exp(mh_scores - 0.25 * Js)
+    mh_phi_total = np.sum(unnormalized_fq, dtype=np.float64)
+
+    # Add MH-less contribution at full MH deletion lengths
+    mh_vector = inp[idx].T[0]
+    mhfull_contribution = np.zeros(mh_vector.shape)
+    for jdx in range(len(mh_vector)):
+      if del_lens[idx][jdx] == mh_vector[jdx]:
+        dl = del_lens[idx][jdx]
+        mhless_score = nn_match_score_function(nn2_params, np.array(dl))
+        mhless_score = np.exp(mhless_score - 0.25 * dl)
+        mask = np.concatenate([np.zeros(jdx, ), np.ones(1, ) * mhless_score, np.zeros(len(mh_vector) - jdx - 1, )])
+        mhfull_contribution = mhfull_contribution + mask
+    unnormalized_fq = unnormalized_fq + mhfull_contribution
+    normalized_fq = np.divide(unnormalized_fq, np.sum(unnormalized_fq))
+
+    # Pearson correlation squared loss
+    x_mean = np.mean(normalized_fq)
+    y_mean = np.mean(obs[idx])
+    pearson_numerator = np.sum((normalized_fq - x_mean) * (obs[idx] - y_mean))
+    pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
+    pearson_denom_y = np.sqrt(np.sum((obs[idx] - y_mean) ** 2))
+    pearson_denom = pearson_denom_x * pearson_denom_y
+    rsq = (pearson_numerator / pearson_denom) ** 2
+    neg_rsq = rsq * -1
+    LOSS += neg_rsq
+
+    #
+    # I want to make sure nn2 never outputs anything negative.
+    # Sanity check during training.
+    #
+
+    ##
+    # Deletion length frequencies, only up to 28
+    #   (Restricts training to library data, else 27 bp.)
+    ##
+    dls = np.arange(1, 28 + 1)
+    dls = dls.reshape(28, 1)
+    nn2_scores = nn_match_score_function(nn2_params, dls)
+    unnormalized_nn2 = np.exp(nn2_scores - 0.25 * np.arange(1, 28 + 1))
+    mh_less_phi_total = np.sum(unnormalized_nn2, dtype=np.float64)
+
+    # iterate through del_lens vector, adding mh_scores (already computed above) to the correct index
+    mh_contribution = np.zeros(28, )
+    for jdx in range(len(Js)):
+      dl = Js[jdx]
+      if dl > 28:
+        break
+      mhs = np.exp(mh_scores[jdx] - 0.25 * dl)
+      mask = np.concatenate([np.zeros(dl - 1, ), np.ones(1, ) * mhs, np.zeros(28 - (dl - 1) - 1, )])
+      mh_contribution = mh_contribution + mask
+    unnormalized_nn2 = unnormalized_nn2 + mh_contribution
+    normalized_fq = np.divide(unnormalized_nn2, np.sum(unnormalized_nn2))
+
+
+    # Pearson correlation squared loss
+    x_mean = np.mean(normalized_fq)
+    y_mean = np.mean(obs2[idx])
+    pearson_numerator = np.sum((normalized_fq - x_mean) * (obs2[idx] - y_mean))
+    pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
+    pearson_denom_y = np.sqrt(np.sum((obs2[idx] - y_mean) ** 2))
+    pearson_denom = pearson_denom_x * pearson_denom_y
+    rsq = (pearson_numerator / pearson_denom) ** 2
+    neg_rsq = rsq * -1
+    LOSS += neg_rsq
+
+    if not isinstance(mh_phi_total, float):
+      mh_phi_total = mh_phi_total._value
+    if not isinstance(mh_less_phi_total, float):
+      mh_less_phi_total = mh_less_phi_total._value
+
+    mh_total = mh_phi_total + mh_less_phi_total
+    total_phi_del_freq.append([NAMES[idx], mh_total, unnormalized_nn2])
+
+    # L2-Loss
+    # LOSS += np.sum((normalized_fq - obs[idx])**2)
+  if iter == num_epochs - 1:
+    column_names = ["exp", "total_phi", "del_freq"]
+    df = pd.DataFrame(total_phi_del_freq, columns=column_names)
+
+    df.to_pickle('total_phi_delfreq.pkl')
+    # pickle.dump(df, open('test_pickle.p', 'wb'))
+    # pickle.dump(total_phi_del_freq, open(out_dir_params + 'total_phi_delfreq.pkl', 'wb'))
+
+  # total_phi
+  return LOSS / num_samples
+
+##
+# ADAM Optimizer
+##
+def exponential_decay(step_size):
+  if step_size > 0.001:
+      step_size *= 0.999
+  return step_size
+
+
+def adam_minmin(grad_both, init_params_nn, init_params_nn2, callback=None, num_iters=100, step_size=0.001, b1=0.9,
+                b2=0.999, eps=10 ** -8):
+  x_nn, unflatten_nn = flatten(init_params_nn)
+  x_nn2, unflatten_nn2 = flatten(init_params_nn2)
+
+  m_nn, v_nn = np.zeros(len(x_nn)), np.zeros(len(x_nn))
+  m_nn2, v_nn2 = np.zeros(len(x_nn2)), np.zeros(len(x_nn2))
+  for i in range(num_iters):
+    g_nn_uf, g_nn2_uf = grad_both(unflatten_nn(x_nn), unflatten_nn2(x_nn2), i)
+    g_nn, _ = flatten(g_nn_uf)
+    g_nn2, _ = flatten(g_nn2_uf)
+
+    if callback:
+      callback(unflatten_nn(x_nn), unflatten_nn2(x_nn2), i)
+
+    step_size = exponential_decay(step_size)
+
+    # Update parameters
+    m_nn = (1 - b1) * g_nn + b1 * m_nn  # First  moment estimate.
+    v_nn = (1 - b2) * (g_nn ** 2) + b2 * v_nn  # Second moment estimate.
+    mhat_nn = m_nn / (1 - b1 ** (i + 1))  # Bias correction.
+    vhat_nn = v_nn / (1 - b2 ** (i + 1))
+    x_nn = x_nn - step_size * mhat_nn / (np.sqrt(vhat_nn) + eps)
+
+    # Update parameters
+    m_nn2 = (1 - b1) * g_nn2 + b1 * m_nn2  # First  moment estimate.
+    v_nn2 = (1 - b2) * (g_nn2 ** 2) + b2 * v_nn2  # Second moment estimate.
+    mhat_nn2 = m_nn2 / (1 - b1 ** (i + 1))  # Bias correction.
+    vhat_nn2 = v_nn2 / (1 - b2 ** (i + 1))
+    x_nn2 = x_nn2 - step_size * mhat_nn2 / (np.sqrt(vhat_nn2) + eps)
+  return unflatten_nn(x_nn), unflatten_nn2(x_nn2)
 
 
 def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters):
   param_scale = 0.1
   # num_epochs = 7*200 + 1
+  global num_epochs
   num_epochs = 50
+
   step_size = 0.10
   init_nn_params = init_random_params(param_scale, nn_layer_sizes, rs=seed)
   init_nn2_params = init_random_params(param_scale, nn2_layer_sizes, rs=seed)
@@ -116,7 +270,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
 
   def objective(nn_params, nn2_params, iter):
     idx = batch_indices(iter)
-    return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
+    return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed, iter=iter)
 
   both_objective_grad = grad(objective, argnum=[0, 1])
 
@@ -125,10 +279,8 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
     if iter % 5 != 0:
       return None
 
-    train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size,
-                                seed)
-    test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, len(INP_test),
-                               seed)
+    train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
+    test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, len(INP_test), seed)
 
     tr1_rsq, tr2_rsq = rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
     te1_rsq, te2_rsq = rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test, len(INP_test), seed)
@@ -137,7 +289,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
       iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
     print_and_log(out_line, log_fn)
 
-    if iter % 20 == 0:
+    if iter % 10 == 0:
       letters = alphabetize(int(iter / 10))
       print_and_log(" Iter | Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2", log_fn)
       print_and_log('%s %s %s' % (datetime.datetime.now(), out_letters, letters), log_fn)
@@ -167,6 +319,7 @@ def neural_networks(merged):
   # Neural network considers each N * 2 input, transforming it into N * 1 output.
   OBS = np.array(freqs)
   OBS2 = np.array(dl_freqs)
+  global NAMES
   NAMES = np.array([str(s) for s in exps])
   DEL_LENS = np.array(del_lens)
 
@@ -177,8 +330,8 @@ def neural_networks(merged):
   train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
 
 
-def load_statistics(data_nm):
-  stats_csv_1, stats_csv_2 = prepare_statistics(data_nm)
+def load_statistics(data_nm, nn_params, nn2_params, total_values):
+  stats_csv_1, stats_csv_2 = prepare_statistics(data_nm, nn_params, nn2_params, total_values)
 
   # if not os.path.isfile(stats_csv_fn):
   #   print('Running statistics from scratch...')
@@ -193,7 +346,7 @@ def load_statistics(data_nm):
   return stats_csv_1, stats_csv_2
 
 
-def prepare_statistics(data_nm):
+def prepare_statistics(data_nm, nn_params, nn2_params):
   # Input: Dataset
   # Output: Uniformly processed dataset, requiring minimal processing for plotting but ideally enabling multiple plots
   # Calculate statistics associated with each experiment by name
@@ -209,7 +362,7 @@ def prepare_statistics(data_nm):
 
   for id, exp in enumerate(exps):
     exp_data = data_nm[data_nm['Sample_Name'] == exp]
-    calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df)
+    calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df, nn_params, nn2_params, total_values)
     calc_1bp_ins_statistics(exp_data, exp, bp_ins_df)
     timer.update()
 
@@ -219,7 +372,11 @@ def prepare_statistics(data_nm):
   return ins_stat, bp_stat
 
 
-def calc_ins_ratio_statistics(all_data, exp, alldf_dict):
+def sigmoid(x):
+  return 0.5 * (np.tanh(x) + 1.0)
+
+
+def calc_ins_ratio_statistics(all_data, exp, alldf_dict, nn_params, nn2_params, total_values):
   # Calculate statistics on df, saving to alldf_dict
   # Deletion positions
   total_ins_del_counts = sum(all_data['countEvents'])
@@ -230,15 +387,17 @@ def calc_ins_ratio_statistics(all_data, exp, alldf_dict):
   ins_count = sum(all_data[(all_data['Type'] == 'INSERTION') & (all_data['delta'] == 1)]['countEvents'])
   del_count = sum(all_data[all_data['Type'] == 'DELETION']['countEvents'])  # need to check - Indel with Mismatches
   mhdel_count = sum(all_data[(all_data['Type'] == 'DELETION') & (all_data['homologyLength'] != 0)][
-                      'countEvents'])  # need to check - Indel with Mismatches
+                      'countEvents'])  #TODO need to check - Indel with Mismatches
 
   ins_ratio = ins_count / total_ins_del_counts
   fivebase = exp[len(exp) - 4]
 
-  del_score = 0.02  # TODO need to find deletion score function(total_deletion_score) - maybe c6_polish.py?
-  norm_entropy = 0.02  # TODO need to find deletion length distribution function(deletion_length_distribution) - maybe c6_polish.py?
+  # From d2
+  del_score = total_values[total_values['exp'] == exp]['total_phi']  # TODO read from the total phi pickle file based on exp name
+  norm_entropy = total_values[total_values['exp'] == exp]['del_freq']
 
   # local_seq = exp[len(exp) - 4:len(exp) + 4] # TODO - fix - +4 will fail - need to get sequence from libA.txt
+  # This is not needed
   local_seq = exp[len(exp) - 4:len(exp)]
   gc = (local_seq.count('C') + local_seq.count('G')) / len(local_seq)
 
@@ -371,8 +530,8 @@ def generate_models(X, Y, bp_stats, Normalizer):
   return
 
 
-def knn(merged):
-  rate_stats, bp_stats = load_statistics(merged)
+def knn(merged, nn_params, nn2_params, total_values):
+  rate_stats, bp_stats = load_statistics(merged, nn_params, nn2_params)
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
   X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
   generate_models(X, Y, bp_stats, Normalizer)
@@ -388,17 +547,26 @@ def predict_all_items():
 if __name__ == '__main__':
   out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders()
   print_and_log("Loading data...", log_fn)
-  counts, del_features = read_data('../in/' + 'dataset.pkl')
+  input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
+
+  counts, del_features = read_data(input_dir + 'dataset.pkl')
   merged = pd.concat([counts, del_features], axis=1)
   merged = merged.reset_index()
   '''
   Neural Network (MH)
   Model Creation, Training & Optimization
   '''
-  # neural_networks(merged)
+  neural_networks(merged)
 
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
-  knn(merged)
+  #
+  nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
+  # column_names = ["exp", "total_phi", "del_freq"]
+  # df = pd.DataFrame(total_phi_del_freq, columns=column_names)
+
+  knn(merged, nn_params, nn2_params, total_values)
