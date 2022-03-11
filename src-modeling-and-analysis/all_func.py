@@ -629,4 +629,3 @@ if __name__ == '__main__':
 
   # TODO predict function using models above
   print('Prediction')
-  
