@@ -1,3 +1,4 @@
+import argparse
 import os, datetime
 import pickle
 from collections import defaultdict
@@ -67,15 +68,18 @@ def parse_data(merged):
   return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
 
-def initialize_files_and_folders():
+def initialize_files_and_folders(use_prev):
   # Set output location of model & params
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
   util.ensure_dir_exists(out_place)
 
   num_folds = count_num_folders(out_place)
-  out_letters = alphabetize(num_folds)
-  out_dir = out_place + out_letters + '/'
+  if use_prev and num_folds >= 1:
+    out_letters = alphabetize(num_folds - 1)
+  else:
+    out_letters = alphabetize(num_folds)
 
+  out_dir = out_place + out_letters + '/'
   out_dir_params = out_place + out_letters + '/parameters/'
   util.ensure_dir_exists(out_dir_params)
 
@@ -338,8 +342,8 @@ def neural_networks(merged):
   train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
 
 
-def load_statistics(data_nm, nn_params, nn2_params, total_values):
-  stats_csv_1, stats_csv_2 = prepare_statistics(data_nm, nn_params, nn2_params, total_values)
+def load_statistics(data_nm, total_values):
+  stats_csv_1, stats_csv_2 = prepare_statistics(data_nm, total_values)
 
   # if not os.path.isfile(stats_csv_fn):
   #   print('Running statistics from scratch...')
@@ -354,7 +358,7 @@ def load_statistics(data_nm, nn_params, nn2_params, total_values):
   return stats_csv_1, stats_csv_2
 
 
-def prepare_statistics(data_nm, nn_params, nn2_params, total_values):
+def prepare_statistics(data_nm, total_values):
   # Input: Dataset
   # Output: Uniformly processed dataset, requiring minimal processing for plotting but ideally enabling multiple plots
   # Calculate statistics associated with each experiment by name
@@ -370,7 +374,7 @@ def prepare_statistics(data_nm, nn_params, nn2_params, total_values):
 
   for id, exp in enumerate(exps):
     exp_data = data_nm[data_nm['Sample_Name'] == exp]
-    calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df, nn_params, nn2_params, total_values)
+    calc_ins_ratio_statistics(exp_data, exp, ins_ratio_df, total_values)
     calc_1bp_ins_statistics(exp_data, exp, bp_ins_df)
     timer.update()
 
@@ -384,7 +388,7 @@ def sigmoid(x):
   return 0.5 * (np.tanh(x) + 1.0)
 
 
-def calc_ins_ratio_statistics(all_data, exp, alldf_dict, nn_params, nn2_params, total_values):
+def calc_ins_ratio_statistics(all_data, exp, alldf_dict, total_values):
   # Calculate statistics on df, saving to alldf_dict
   # Deletion positions
   total_ins_del_counts = sum(all_data['countEvents'])
@@ -540,8 +544,8 @@ def generate_models(X, Y, bp_stats, Normalizer):
   return
 
 
-def knn(merged, nn_params, nn2_params, total_values):
-  rate_stats, bp_stats = load_statistics(merged, nn_params, nn2_params, total_values)
+def knn(merged, total_values):
+  rate_stats, bp_stats = load_statistics(merged, total_values)
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
   X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
   generate_models(X, Y, bp_stats, Normalizer)
@@ -555,7 +559,17 @@ def predict_all_items():
 
 
 if __name__ == '__main__':
-  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders()
+  parser = argparse.ArgumentParser(description='Execution Details')
+  parser.add_argument('--cache', dest='use_prev_model', type=str, help='Boolean variable indicating if to use cached model or recalculate')
+  args = parser.parse_args()
+
+  if args.use_prev_model:
+    use_model = args.use_prev_model == 'True'
+  else:
+    use_model = False
+
+  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders(use_model)
+
   print_and_log("Loading data...", log_fn)
   input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
 
@@ -566,15 +580,16 @@ if __name__ == '__main__':
   Neural Network (MH)
   Model Creation, Training & Optimization
   '''
-  neural_networks(merged)
+  if not use_model:
+    neural_networks(merged)
 
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
-  # #
-  # nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
-  # nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
-  # total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
   #
-  # knn(merged, nn_params, nn2_params, total_values)
+  nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
+
+  knn(merged, total_values)
