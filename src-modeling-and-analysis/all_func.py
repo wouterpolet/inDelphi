@@ -22,6 +22,7 @@ import warnings
 from pandas.core.common import SettingWithCopyWarning
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 # import fi2_ins_ratio
@@ -81,14 +82,16 @@ def initialize_files_and_folders(use_prev):
 
   out_dir = out_place + out_letters + '/'
   out_dir_params = out_place + out_letters + '/parameters/'
+  out_dir_stat = out_place + out_letters + '/statistics/'
   util.ensure_dir_exists(out_dir_params)
+  util.ensure_dir_exists(out_dir_stat)
 
   log_fn = out_dir + '_log_%s.out' % out_letters
   with open(log_fn, 'w') as f:
     pass
   print_and_log('out dir: ' + out_dir, log_fn)
 
-  return out_dir, log_fn, out_dir_params, out_letters
+  return out_dir, log_fn, out_dir_params, out_dir_stat, out_letters
 
 
 def initialize_model():
@@ -344,19 +347,18 @@ def neural_networks(merged):
 
 
 def load_statistics(data_nm, total_values):
-  stats_csv_1, stats_csv_2 = prepare_statistics(data_nm, total_values)
-
-  # if not os.path.isfile(stats_csv_fn):
-  #   print('Running statistics from scratch...')
-  #   stats_csv_1, stats_csv_2 = prepare_statistics(data_nm)
-  #   # TODO: fix here - file override eachother
-  #   stats_csv_1.to_csv(stats_csv_fn)
-  #   stats_csv_2.to_csv(stats_csv_fn)
-  # else:
-  #   print('Getting statistics from file...')
-  #   stats_csv = pd.read_csv(stats_csv_fn, index_col=0)
-  print('Done')
-  return stats_csv_1, stats_csv_2
+  ins_stat_dir = out_dir_stat + 'ins_stat.csv'
+  bp_stat_dir = out_dir_stat + 'bp_stat.csv'
+  if os.path.isfile(ins_stat_dir) and os.path.isfile(bp_stat_dir):
+    print('Loading statistics...')
+    ins_stat = pd.read_csv(ins_stat_dir, index_col=0)
+    bp_stat = pd.read_csv(bp_stat_dir, index_col=0)
+  else:
+    print('Creating statistics...')
+    ins_stat, bp_stat = prepare_statistics(data_nm, total_values)
+    ins_stat.to_csv(ins_stat_dir)
+    bp_stat.to_csv(bp_stat_dir)
+  return ins_stat, bp_stat
 
 
 def prepare_statistics(data_nm, total_values):
@@ -480,16 +482,21 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
   return alldf_dict
 
 
+def convert_oh_string_to_nparray(input):
+  input = input.replace('[', '').replace(']', '')
+  nums = input.split(' ')
+  return np.array([int(s) for s in nums])
+
+
 def featurize(rate_stats, Y_nm):
-  fivebases = np.array([s.astype('int32') for s in rate_stats['Fivebase_OH']])
-  threebases = np.array([s.astype('int32') for s in rate_stats['Threebase_OH']])
+  fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']])
+  threebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Threebase_OH']])
 
   ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
   del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
-  print(ent.shape, fivebases.shape, del_scores.shape)
-
+  print('Entropy Shape: %s, Fivebase Shape: %s, Deletion Score Shape: %s' % (ent.shape, fivebases.shape, del_scores.shape))
   Y = np.array(rate_stats[Y_nm])
-  print(Y_nm)
+  print('Y_nm: %s' % Y_nm)
 
   Normalizer = [(np.mean(fivebases.T[2]), np.std(fivebases.T[2])),
                 (np.mean(fivebases.T[3]), np.std(fivebases.T[3])),
@@ -520,7 +527,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
   # Train rate model
   model = KNeighborsRegressor()
   model.fit(X, Y)
-  with open(out_dir + 'rate_model_v2.pkl', 'w') as f:
+  with open(out_dir + 'rate_model.pkl', 'wb') as f:
     pickle.dump(model, f)
 
   # Obtain bp stats
@@ -536,10 +543,10 @@ def generate_models(X, Y, bp_stats, Normalizer):
     for bp, freq in zip(list('ACGT'), mean_vals):
       bp_model[base][bp] = freq / sum(mean_vals)
 
-  with open(out_dir + 'bp_model_v2.pkl', 'w') as f:
+  with open(out_dir + 'bp_model.pkl', 'wb') as f:
     pickle.dump(bp_model, f)
 
-  with open(out_dir + 'Normalizer_v2.pkl', 'w') as f:
+  with open(out_dir + 'Normalizer.pkl', 'wb') as f:
     pickle.dump(Normalizer, f)
 
   return
@@ -569,7 +576,7 @@ if __name__ == '__main__':
   else:
     use_model = False
 
-  out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders(use_model)
+  out_dir, log_fn, out_dir_params, out_dir_stat, out_letters = initialize_files_and_folders(use_model)
   print_and_log("Loading data...", log_fn)
   input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
 
