@@ -316,6 +316,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
 
   optimized_params = adam_minmin(both_objective_grad, init_nn_params, init_nn2_params, step_size=step_size,
                                  num_iters=num_epochs, callback=print_perf)
+  return optimized_params
 
 
 def neural_networks(merged):
@@ -339,7 +340,7 @@ def neural_networks(merged):
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
-  train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
+  return train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
 
 
 def load_statistics(data_nm, total_values):
@@ -569,7 +570,6 @@ if __name__ == '__main__':
     use_model = False
 
   out_dir, log_fn, out_dir_params, out_letters = initialize_files_and_folders(use_model)
-
   print_and_log("Loading data...", log_fn)
   input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
 
@@ -581,15 +581,16 @@ if __name__ == '__main__':
   Model Creation, Training & Optimization
   '''
   if not use_model:
-    neural_networks(merged)
+    print_and_log("Training Neural Networks...", log_fn)
+    nn_params, nn2_params = neural_networks(merged)
+  else:
+    print_and_log("Loading Neural Networks...", log_fn)
+    nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+    nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
 
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
-  #
-  nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
-  nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
   total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
-
   knn(merged, total_values)
