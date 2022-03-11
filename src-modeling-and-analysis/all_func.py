@@ -83,15 +83,17 @@ def initialize_files_and_folders(use_prev):
   out_dir = out_place + out_letters + '/'
   out_dir_params = out_place + out_letters + '/parameters/'
   out_dir_stat = out_place + out_letters + '/statistics/'
+  out_dir_model = out_place + out_letters + '/model/'
   util.ensure_dir_exists(out_dir_params)
   util.ensure_dir_exists(out_dir_stat)
+  util.ensure_dir_exists(out_dir_model)
 
   log_fn = out_dir + '_log_%s.out' % out_letters
   with open(log_fn, 'w') as f:
     pass
   print_and_log('out dir: ' + out_dir, log_fn)
 
-  return out_dir, log_fn, out_dir_params, out_dir_stat, out_letters
+  return out_dir, log_fn, out_dir_params, out_dir_stat, out_dir_model, out_letters
 
 
 def initialize_model():
@@ -527,7 +529,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
   # Train rate model
   model = KNeighborsRegressor()
   model.fit(X, Y)
-  with open(out_dir + 'rate_model.pkl', 'wb') as f:
+  with open(out_dir_model + '%s_rate_model.pkl' % out_letters, 'wb') as f:
     pickle.dump(model, f)
 
   # Obtain bp stats
@@ -543,20 +545,20 @@ def generate_models(X, Y, bp_stats, Normalizer):
     for bp, freq in zip(list('ACGT'), mean_vals):
       bp_model[base][bp] = freq / sum(mean_vals)
 
-  with open(out_dir + 'bp_model.pkl', 'wb') as f:
+  with open(out_dir_model + '%s_bp_model.pkl' % out_letters, 'wb') as f:
     pickle.dump(bp_model, f)
 
-  with open(out_dir + 'Normalizer.pkl', 'wb') as f:
+  with open(out_dir_model + '%s_Normalizer.pkl' % out_letters, 'wb') as f:
     pickle.dump(Normalizer, f)
 
-  return
+  return model, bp_model, Normalizer
 
 
 def knn(merged, total_values):
   rate_stats, bp_stats = load_statistics(merged, total_values)
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
   X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
-  generate_models(X, Y, bp_stats, Normalizer)
+  return generate_models(X, Y, bp_stats, Normalizer)
 
 
 def predict_all_items():
@@ -566,17 +568,36 @@ def predict_all_items():
   # _predict.predict_all()
 
 
+def load_ins_models(out_letters):
+  rate_model = load_model(out_dir_model + '%s_rate_model.pkl' % out_letters)
+  bp_model = load_model(out_dir_model + '%s_bp_model.pkl' % out_letters)
+  normalizer = load_model(out_dir_model + '%s_Normalizer.pkl' % out_letters)
+  return rate_model, bp_model, normalizer
+
+
+def load_neural_networks(out_letters):
+  nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  return nn_params, nn2_params
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
-  parser.add_argument('--cache', dest='use_prev_model', type=str, help='Boolean variable indicating if to use cached model or recalculate')
+  parser.add_argument('--cached_nn', dest='use_prev_nn_model', type=str, help='Boolean variable indicating if to use cached model or recalculate neural network')
+  parser.add_argument('--cached_knn', dest='use_prev_knn_model', type=str, help='Boolean variable indicating if to use cached model or recalculate knn')
   args = parser.parse_args()
 
-  if args.use_prev_model:
-    use_model = args.use_prev_model == 'True'
+  if args.use_prev_nn_model:
+    use_nn_model = args.use_prev_nn_model == 'True'
   else:
-    use_model = False
+    use_nn_model = False
 
-  out_dir, log_fn, out_dir_params, out_dir_stat, out_letters = initialize_files_and_folders(use_model)
+  if args.use_prev_knn_model:
+    use_knn_model = args.use_prev_knn_model == 'True'
+  else:
+    use_knn_model = False
+
+  out_dir, log_fn, out_dir_params, out_dir_stat, out_dir_model, out_letters = initialize_files_and_folders(use_nn_model)
   print_and_log("Loading data...", log_fn)
   input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
 
@@ -587,17 +608,25 @@ if __name__ == '__main__':
   Neural Network (MH)
   Model Creation, Training & Optimization
   '''
-  if not use_model:
+  if not use_nn_model:
     print_and_log("Training Neural Networks...", log_fn)
     nn_params, nn2_params = neural_networks(merged)
   else:
     print_and_log("Loading Neural Networks...", log_fn)
-    nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
-    nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+    nn_params, nn2_params = load_neural_networks(out_letters)
 
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
-  total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
-  knn(merged, total_values)
+  if not use_knn_model:
+    print_and_log("Training KNN...", log_fn)
+    total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
+    rate_model, bp_model, normalizer = knn(merged, total_values)
+  else:
+    print_and_log("Loading KNN...", log_fn)
+    rate_model, bp_model, normalizer = load_ins_models(out_letters)
+
+  # TODO predict function using models above
+  print('Prediction')
+  
