@@ -10,6 +10,7 @@ from autograd.misc import flatten
 
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
+from scipy.stats import entropy
 
 # import _config, _predict
 import util as util
@@ -31,7 +32,7 @@ def parse_data(merged):
   deletions = deletions.reset_index()
 
   # A single value GRNA -Train until 1871
-  exps = deletions['Sample_Name'].unique()[:10]
+  exps = deletions['Sample_Name'].unique()
   # Q & A: How to determine if a deletion is MH or MH-less - length != 0
   # Question: Do we need to distinguish between MH and MH-less, if yes, how to pass diff del_len to MH-less NN
 
@@ -114,6 +115,7 @@ def read_data(file):
 ##
 def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs, iter=0):
   LOSS = 0
+  test1 = []
   total_phi_del_freq = []  # 1961 x 1
   for idx in range(len(inp)):  # for each gRNA
     ##
@@ -192,20 +194,26 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     if not isinstance(mh_less_phi_total, float):
       mh_less_phi_total = mh_less_phi_total._value
 
+    # Calculate norm entropy
     mh_total = mh_phi_total + mh_less_phi_total
-    total_phi_del_freq.append([NAMES[idx], mh_total, unnormalized_nn2])
+    # Convert to list from arraybox
+    normalized_fq_list = []
+    for item in normalized_fq:
+      value = item
+      if not isinstance(item, float):
+        value = item._value
+      normalized_fq_list.append(value)
+    # normalized_fq_list = [item._value for item in normalized_fq]
+    norm_entropy = entropy(normalized_fq_list) / np.log(len(normalized_fq_list))
 
-    # L2-Loss
-    # LOSS += np.sum((normalized_fq - obs[idx])**2)
+    # Append to list for storing
+    total_phi_del_freq.append([NAMES[idx], mh_total, norm_entropy])
+
   if iter == num_epochs - 1:
-    column_names = ["exp", "total_phi", "del_freq"]
+    column_names = ["exp", "total_phi", "norm_entropy"]
     df = pd.DataFrame(total_phi_del_freq, columns=column_names)
+    df.to_pickle(out_dir_params + 'total_phi_delfreq.pkl')
 
-    df.to_pickle('total_phi_delfreq.pkl')
-    # pickle.dump(df, open('test_pickle.p', 'wb'))
-    # pickle.dump(total_phi_del_freq, open(out_dir_params + 'total_phi_delfreq.pkl', 'wb'))
-
-  # total_phi
   return LOSS / num_samples
 
 ##
@@ -346,7 +354,7 @@ def load_statistics(data_nm, nn_params, nn2_params, total_values):
   return stats_csv_1, stats_csv_2
 
 
-def prepare_statistics(data_nm, nn_params, nn2_params):
+def prepare_statistics(data_nm, nn_params, nn2_params, total_values):
   # Input: Dataset
   # Output: Uniformly processed dataset, requiring minimal processing for plotting but ideally enabling multiple plots
   # Calculate statistics associated with each experiment by name
@@ -354,7 +362,7 @@ def prepare_statistics(data_nm, nn_params, nn2_params):
   ins_ratio_df = defaultdict(list)
 
   timer = util.Timer(total=len(data_nm))
-  exps = data_nm['Sample_Name'].unique()[:10]
+  exps = data_nm['Sample_Name'].unique()
 
   data_nm['delta'] = data_nm['Indel'].str.extract(r'(\d+)', expand=True)
   data_nm['nucleotide'] = data_nm['Indel'].str.extract(r'([A-Z]+)', expand=True)
@@ -385,16 +393,18 @@ def calc_ins_ratio_statistics(all_data, exp, alldf_dict, nn_params, nn2_params, 
 
   editing_rate = 1  # always 1 since sum(in or del) / sum(in or del which aren't noise)
   ins_count = sum(all_data[(all_data['Type'] == 'INSERTION') & (all_data['delta'] == 1)]['countEvents'])
-  del_count = sum(all_data[all_data['Type'] == 'DELETION']['countEvents'])  # need to check - Indel with Mismatches
-  mhdel_count = sum(all_data[(all_data['Type'] == 'DELETION') & (all_data['homologyLength'] != 0)][
-                      'countEvents'])  #TODO need to check - Indel with Mismatches
+  del_count = sum(all_data[all_data['Type'] == 'DELETION']['countEvents'])
+  mhdel_count = sum(all_data[(all_data['Type'] == 'DELETION') & (all_data['homologyLength'] != 0)]['countEvents'])
 
   ins_ratio = ins_count / total_ins_del_counts
   fivebase = exp[len(exp) - 4]
 
-  # From d2
-  del_score = total_values[total_values['exp'] == exp]['total_phi']  # TODO read from the total phi pickle file based on exp name
-  norm_entropy = total_values[total_values['exp'] == exp]['del_freq']
+  if len(total_values[total_values['exp'] == exp]) > 0:
+    del_score = total_values[total_values['exp'] == exp]['total_phi'].values[0]
+    norm_entropy = total_values[total_values['exp'] == exp]['norm_entropy'].values[0]
+  else:
+    del_score = 0
+    norm_entropy = 0
 
   # local_seq = exp[len(exp) - 4:len(exp) + 4] # TODO - fix - +4 will fail - need to get sequence from libA.txt
   # This is not needed
@@ -531,7 +541,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
 
 
 def knn(merged, nn_params, nn2_params, total_values):
-  rate_stats, bp_stats = load_statistics(merged, nn_params, nn2_params)
+  rate_stats, bp_stats = load_statistics(merged, nn_params, nn2_params, total_values)
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
   X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
   generate_models(X, Y, bp_stats, Normalizer)
@@ -562,11 +572,9 @@ if __name__ == '__main__':
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
+  # #
+  # nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  # nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  # total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
   #
-  nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
-  nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
-  total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
-  # column_names = ["exp", "total_phi", "del_freq"]
-  # df = pd.DataFrame(total_phi_del_freq, columns=column_names)
-
-  knn(merged, nn_params, nn2_params, total_values)
+  # knn(merged, nn_params, nn2_params, total_values)
