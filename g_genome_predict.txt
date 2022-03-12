@@ -21,3 +21,9 @@ g_genome predict:
 				iv.  store cutsite information into dictionary
 				v.   _predict.predict_all 1b insertions and all deletions of given sequence context and cutsite
 			b. 
+
+
+conclusions so far:
+- to run g_genome predict on libB gRNAs, run g_genome predict, feeding libB target sequences as find_cutsites_and_predict requires.
+- here, run bulk_predict on target seq of 55bps with cutsites at python index 27 (between 27th and 28th base)
+- no need to look for cutsites, head straight to predict_all.
