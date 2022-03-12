@@ -1,0 +1,23 @@
+g_genome predict:
+1. load fitted k-nn model, bp-model dict and normalizer
+2. get dfs on which will predict on exons/introns
+3. find_cutsites_and_predict on all of the exons/introns in df
+
+	find_cutsites_and_predict:
+	1. _predict.init_model: load trained nn and nn2 parameters + load the functions from dd2_model
+	2. open the exon/intron df to predict on them
+	3. For each exon/intron
+		a. get its name and DNA sequence
+		b. run bulk_predict (find all cutsites in sequence, get metadata, predict outcomes)
+
+		bulk_predict:
+		for the current exon/intron
+		1. get its metadata from header
+		2. look for cutsites
+			a. for each cutsite found
+				i.   get a local sequence -30 and +30
+				ii.  randomly decide if will predict on that cutsite or not (5% of time will)
+				iii. generate a randomised sequence (-ve control), keeping only the cutsite location
+				iv.  store cutsite information into dictionary
+				v.   _predict.predict_all 1b insertions and all deletions of given sequence context and cutsite
+			b. 

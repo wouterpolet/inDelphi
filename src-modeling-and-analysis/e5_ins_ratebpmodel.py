@@ -111,7 +111,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
                                                     #  'G': {'A': .., 'C': .., 'G': .., 'T': ..},
                                                     #  'T': {'A': .., 'C': .., 'G': .., 'T': ..} }
                                                     # each .. is the norm.'d avg. freq. of that N when -4 base is 'N'
-                                                    # this dict represents all gRNAs
+                                                    # this dict was generated over all training gRNAs
 
   with open(out_dir + 'Normalizer_v2.pkl', 'w') as f:
     pickle.dump(Normalizer, f)

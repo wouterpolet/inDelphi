@@ -120,7 +120,7 @@ def find_cutsites_and_predict(inp_fn, data_nm, split):
         if len(sequence) > 500000:
           continue
 
-        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)   # predict
+        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)   # predict for a single exon/intron
         dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
 
       if (i - 1) % 50 == 0 and i > 1:
@@ -135,22 +135,24 @@ def get_indel_len_pred(pred_all_df):
   indel_len_pred = dict()
 
   # 1 bp insertions
-  crit = (pred_all_df['Category'] == 'ins')
-  indel_len_pred[1] = float(sum(pred_all_df[crit]['Predicted_Frequency']))
-
+  crit = (pred_all_df['Category'] == 'ins')                                 # for all insertions
+  indel_len_pred[1] = float(sum(pred_all_df[crit]['Predicted_Frequency']))  # predicted frequency of 1bp ins over all indel products
+                                                                            # store for +1 key in dictionary
   # Deletions
   for del_len in range(1, 60):
-    crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Length'] == del_len)
-    freq = float(sum(pred_all_df[crit]['Predicted_Frequency']))
-    dl_key = -1 * del_len
-    indel_len_pred[dl_key] = freq
+    crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Length'] == del_len)    # for each deletion length
+    freq = float(sum(pred_all_df[crit]['Predicted_Frequency']))                       #   get pred freq of del with that len over all indel products
+    dl_key = -1 * del_len                                                             #   give -dl key in dict
+    indel_len_pred[dl_key] = freq                                                     #   store as -dl key in dict
+
+                                                                            # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
 
   # Frameshifts, insertion-orientation
   fs = {'+0': 0, '+1': 0, '+2': 0}
-  for indel_len in indel_len_pred:
-    fs_key = '+%s' % (indel_len % 3)
-    fs[fs_key] += indel_len_pred[indel_len]
-  return indel_len_pred, fs
+  for indel_len in indel_len_pred:              # for each predicted frequency of +1, -1, ..., -60
+    fs_key = '+%s' % (indel_len % 3)            #   calculate the resulting frameshift +0, +1 or +2 by remainder division
+    fs[fs_key] += indel_len_pred[indel_len]     #   and accumulate the predicted frequency of frame shifts
+  return indel_len_pred, fs                     # return dict: {+1 = [..], -1 = [..], ..., -60 = [..]} and fs = {'+0': [..], '+1': [..], '+2': [..]}
 
 
 ##
@@ -164,11 +166,12 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
     return
 
   for idx in range(len(sequence)):        # for each base in the sequence
+    # this loop finishes only each of 5% of all found cutsites with 60-bp long sequences containing only ACGT
     seq = ''
     if sequence[idx : idx+2] == 'CC':             # if on top strand find CC
       cutsite = idx + 6                           # cut site of complementary GG is +6 away
       seq = sequence[cutsite - 30 : cutsite + 30] # get sequence 30bp L and R of cutsite
-      seq = compbio.reverse_complement(seq)       # compute reverse strand (complimentary)
+      seq = compbio.reverse_complement(seq)       # compute reverse strand (complimentary) to target with gRNA
       orientation = '-'
     if sequence[idx : idx+2] == 'GG':             # if GG on top strand
       cutsite = idx - 4                           # cut site is -4 away
@@ -181,23 +184,23 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
 
     # Sanitize input
     seq = seq.upper()
-    if 'N' in seq:
+    if 'N' in seq:                      # if N in collected sequence, return to start of for loop / skip rest
       continue
-    if not re.match('^[ACGT]*$', seq):
+    if not re.match('^[ACGT]*$', seq):  # if there not only ACGT in seq, ^
       continue
 
     # Randomly query subset for broad shallow coverage
     r = np.random.random()
     if r > 0.05:
-      continue
+      continue              # randomly decide if will predict on the found cutsite or not. 5% of time will
 
     # Shuffle everything but GG
     seq_nogg = list(seq[:34] + seq[36:])
     random.shuffle(seq_nogg)
-    shuffled_seq = ''.join(seq_nogg[:34]) + 'GG' + ''.join(seq_nogg[36:])
+    shuffled_seq = ''.join(seq_nogg[:34]) + 'GG' + ''.join(seq_nogg[36:])       # a sort of -ve control
 
-    for d, seq_context, shuffled_nm in zip([dd, dd_shuffled],     # dictionaries with values as list
-                                           [seq, shuffled_seq],   # exon/intron sequence and shuffled sequence
+    for d, seq_context, shuffled_nm in zip([dd, dd_shuffled],     # initially empty dicts (values as list) for each full exon/intron
+                                           [seq, shuffled_seq],   # sub-exon/intron cutsite sequence and shuffled sequence
                                            ['wt', 'shuffled']):
       #
       # Store metadata statistics
@@ -220,8 +223,19 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       # Make predictions for each SpCas9 gRNA targeting exons and introns
       ans = _predict.predict_all(seq_context, local_cutsite,            # seq_context is a tuple/pair? of seq and shuffled_seq
                                  rate_model, bp_model, normalizer)      # trained k-nn, bp summary dict, normalizer
-      pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans
+      pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans    #
       # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
+      # pred_del_df = df of predicted unique del products             for sequence context and cutsite
+      # pred_all_df = df of all predicted unique in+del products          ^
+      # total_phi_score = total NN1+2 phi score                           ^
+      # ins_del_ratio = fraction frequency of 1bp ins over all indels     ^
+
+      # pred_all_df ( pred_del_df only has the first 4 columns, and only with info for dels):
+      #   'Length'                predicted in/del length
+      #   'Genotype Position'     predicted delta (useful only for dels)
+      #   'Predicted_Frequency'   predicted normalised in/del frequency
+      #   'Category'              deletion/insertion
+      #   'Inserted Bases'        predicted inserted base (useful only for ins)
 
       # Save predictions
       # del_df_out_fn = df_out_dir + '%s_%s_%s.csv' % (unique_id, 'dels', shuffled_nm)
@@ -325,7 +339,7 @@ def gen_qsubs():
 def main(data_nm = '', split = ''):
   print NAME
   global out_dir
-  util.ensure_dir_exists(out_dir)
+  util.ensure_dir_exists(out_dir)           # check that databases exist
   util.ensure_dir_exists(exon_dfs_out_dir)
   util.ensure_dir_exists(intron_dfs_out_dir)
 
@@ -333,9 +347,16 @@ def main(data_nm = '', split = ''):
     gen_qsubs()
     return
 
+  # # Default params
+  # DEFAULT_INP_DIR = _config.OUT_PLACE + 'a_split/'
+  # NAME = util.get_fn(__file__)
+  # out_dir = _config.OUT_PLACE + NAME + '/'
+  # exon_dfs_out_dir = out_dir + 'exon_dfs/'
+  # intron_dfs_out_dir = out_dir + 'intron_dfs/'
   inp_fn = DEFAULT_INP_DIR + '%s_%s.fa' % (data_nm, split)
-  init_rate_bp_models()   # load fitted k-nn model, the bp_model dict and normalizer as global vars
+  init_rate_bp_models()                     # load fitted k-nn model, the bp_model dict and normalizer as global vars
   find_cutsites_and_predict(inp_fn, data_nm, split)
+                          # input = (exon/intron file address, exons or introns dataframes, first 500 or 5000 objects)
 
   return
 
