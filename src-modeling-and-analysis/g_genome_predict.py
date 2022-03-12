@@ -199,6 +199,7 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
     random.shuffle(seq_nogg)
     shuffled_seq = ''.join(seq_nogg[:34]) + 'GG' + ''.join(seq_nogg[36:])       # a sort of -ve control
 
+    # for one set of sequence context and its shuffled counterpart
     for d, seq_context, shuffled_nm in zip([dd, dd_shuffled],     # initially empty dicts (values as list) for each full exon/intron
                                            [seq, shuffled_seq],   # sub-exon/intron cutsite sequence and shuffled sequence
                                            ['wt', 'shuffled']):
@@ -244,7 +245,19 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       # pred_all_df.to_csv(all_df_out_fn)
 
       ## Translate predictions to indel length frequencies
-      indel_len_pred, fs = get_indel_len_pred(pred_all_df)
+      indel_len_pred, fs = get_indel_len_pred(pred_all_df)    # normalised frequency distributon on indel lengths
+                                                              # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
+                                                              #   and normalised frequency distribution of frameshifts
+                                                              #   fs = {'+0': [..], '+1': [..], '+2': [..]}
+      # d = zip[dd, dd_shuffled]:
+      # 'Sequence Context'
+      # 'Local Cutsite'
+      # 'Chromosome'
+      # 'Cutsite Location'
+      # 'Orientation'
+      # 'Cas9 gRNA'
+      # 'Gene kgID'
+      # 'Unique ID'
 
       #
       # Store prediction statistics
@@ -261,7 +274,7 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       d['Frameshift +2'].append(fs['+2'])
       d['Frameshift'].append(fs['+1'] + fs['+2'])
 
-      crit = (pred_del_df['Genotype Position'] != 'e')
+      crit = (pred_del_df['Genotype Position'] != 'e') 
       s = pred_del_df[crit]['Predicted_Frequency']
       s = np.array(s) / sum(s)
       del_gt_precision = 1 - entropy(s) / np.log(len(s))
