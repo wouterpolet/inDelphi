@@ -8,6 +8,7 @@ import warnings
 import re
 from collections import defaultdict
 import glob
+import mylib.plot as plt
 
 import autograd.numpy as np
 import autograd.numpy.random as npr
@@ -19,13 +20,15 @@ from scipy.stats import entropy
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 
-# import _config, _predict
+from _predict import find_microhomologies, get_gc_frac
 import util as util
 from d2_model import alphabetize, count_num_folders, print_and_log, save_train_test_names \
   , init_random_params, rsq, save_parameters, nn_match_score_function
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
+DELETION_LEN_LIMIT = 28
 
 
 def parse_data(merged):
@@ -597,7 +600,8 @@ def get_indel_len_pred(pred_all_df):
   indel_len_pred[1] = float(sum(pred_all_df[crit]['Predicted_Frequency']))  # predicted frequency of 1bp ins over all indel products
                                                                             # store for +1 key in dictionary
   # Deletions
-  for del_len in range(1, 60):
+  # Deletion length set to 28 instead of 60 i.e. original-> 55/2
+  for del_len in range(1, DELETION_LEN_LIMIT):
     crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Length'] == del_len)    # for each deletion length
     freq = float(sum(pred_all_df[crit]['Predicted_Frequency']))                       #   get pred freq of del with that len over all indel products
     dl_key = -1 * del_len                                                             #   give -dl key in dict
@@ -613,41 +617,14 @@ def get_indel_len_pred(pred_all_df):
   return indel_len_pred, fs                     # return dict: {+1 = [..], -1 = [..], ..., -60 = [..]} and fs = {'+0': [..], '+1': [..], '+2': [..]}
 
 
-def get_gc_frac(seq):
-  return (seq.count('C') + seq.count('G')) / len(seq)
-
-
-# for a given pair of resected left and right strands, equally long
-def find_microhomologies(left, right):
-  # TAGATT - TATAGG = 0
-  start_idx = max(len(right) - len(left), 0)
-  mhs = []
-  mh = [start_idx]
-  # for each base in the overhangs
-  for idx in range(min(len(right), len(left))):
-    # {--left[idx] == right[idx]--} = {--left[idx] complementary to reverse_right[star_idx+idx]--}
-    if left[idx] == right[start_idx + idx]:
-      #           TAGATT    2 MHs
-      #           || |
-      #           ATATCC
-      # gt pos    123456
-      # MH 1 del outcome: GTGCTCTTAACTTTCACTTTATATAGGGTTAATAAATGGGAATTTATAT
-      # MH 2 del outcome: GTGCTCTTAACTTTCACTTTATAGAGGGTTAATAAATGGGAATTTATAT
-      mh.append(start_idx + idx + 1)
-    else:
-      mhs.append(mh)
-      mh = [start_idx + idx + 1]
-  mhs.append(mh)
-  return mhs
-
 #                              0123456789012345678901234567890123456789012345678901234
 # MH 1 outcome:                GTGCTCTTAACTTTCACTTTATA------TAGGGTTAATAAATGGGAATTTATAT, gt pos 2, del len 6
 # MH 2 outcome:                GTGCTCTTAACTTTCACTTTATAGA------GGGTTAATAAATGGGAATTTATAT, gt pos 4, del len 6
 # cutsite 27:                  GTGCTCTTAACTTTCACTTTATAGATT
 #                                                         TATAGGGTTAATAAATGGGAATTTATAT (this is not reverse strand)
 # print 'Using DELLEN_LIMIT = %s' % (DELLEN_LIMIT) TATCTAAATATCCCAATTATTTACCCTTAAATATA
-# TODO shouldnt deletion limit be less or equal to the sequence len? how can it be larger?
-def featurize_seq(seq, cutsite, del_len_limit=60):  # for each gRNA sequence, e.g. GTGCTCTTAACTTTCACTTTATAGATTTATAGGGTTAATAAATGGGAATTTATAT
+# Deletion limit set to x, since sequence length is 55 -> 55/2 = 27
+def featurize_seq(seq, cutsite, del_len_limit=DELETION_LEN_LIMIT):  # for each gRNA sequence, e.g. GTGCTCTTAACTTTCACTTTATAGATTTATAGGGTTAATAAATGGGAATTTATAT
   mh_lens, gc_fracs, gt_poss, del_lens = [], [], [], []
   for del_len in range(1, del_len_limit):
     left = seq[cutsite - del_len: cutsite]  # get 3' overhang nucleotides on the left            TAGATT
@@ -936,8 +913,8 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       all_gt_precision = 1 - entropy(s) / np.log(len(s))
       d['Precision - All Genotype'].append(all_gt_precision)
 
-      negthree_nt = seq_context[local_cutsite - 1]
-      negfour_nt = seq_context[local_cutsite]
+      negthree_nt = seq_context[local_cutsite]
+      negfour_nt = seq_context[local_cutsite - 1]
       d['-4 nt'].append(negfour_nt)
       d['-3 nt'].append(negthree_nt)
 
@@ -985,6 +962,13 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
   num_flushed = 0
   timer = util.Timer(len(all_data))
   # for i, line in enumerate(all_data):
+  # d = pd.DataFrame(columns=[
+  #   'Sequence Context' , 'Local Cutsite' , 'Cas9 gRNA' , 'Total Phi Score'
+  #   , '1ins/del Ratio' , 'Frameshift +0' , 'Frameshift +1' , 'Frameshift +2' , 'Frameshift'
+  #   , 'Precision - Del Genotype', 'Precision - Del Length', 'Precision - All Genotype', '-4 nt', '-3 nt', 'Highest Ins Rate', 'Highest Del Rate'
+  # ])
+  d = defaultdict(list)
+
   for i, line in all_data.iterrows():
     header = line['name']
     grna = line['grna']
@@ -1000,7 +984,11 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
     # dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
 
     # local_cutsite = find where grna starts, add the total len of the grna and subtract 3 (PAM)
-    local_cutsite = sequence.index(grna) + len(grna) - 3
+    # local_cutsite = sequence.index(grna) + len(grna) - 3
+    local_cutsite = 27
+    # sequence =
+
+
     # seq_context is a tuple/pair? of seq and shuffled_seq
     # trained k-nn, bp summary dict, normalizer
     ans = predict_all(sequence, local_cutsite, rate_model, bp_model, normalizer)
@@ -1012,12 +1000,16 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
     #
     # Store prediction statistics
     #
+    d['Sequence Context'].append(sequence)
+    d['Local Cutsite'].append(local_cutsite)
+    d['Cas9 gRNA'].append(grna)
+
     d['Total Phi Score'].append(total_phi_score)
     d['1ins/del Ratio'].append(ins_del_ratio)
 
-    d['1ins Rate Model'].append(rate_model)
-    d['1ins bp Model'].append(bp_model)
-    d['1ins normalizer'].append(normalizer)
+    # d['1ins Rate Model'].append(rate_model)
+    # d['1ins bp Model'].append(bp_model)
+    # d['1ins normalizer'].append(normalizer)
 
     d['Frameshift +0'].append(fs['+0'])
     d['Frameshift +1'].append(fs['+1'])
@@ -1028,14 +1020,16 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
     s = pred_del_df[crit]['Predicted_Frequency']
     s = np.array(s) / sum(s)
     del_gt_precision = 1 - entropy(s) / np.log(len(s))
+
     d['Precision - Del Genotype'].append(del_gt_precision)
 
     dls = []
-    for del_len in range(1, 60):
+    for del_len in range(1, DELETION_LEN_LIMIT):
       dlkey = -1 * del_len
       dls.append(indel_len_pred[dlkey])
     dls = np.array(dls) / sum(dls)
     del_len_precision = 1 - entropy(dls) / np.log(len(dls))
+
     d['Precision - Del Length'].append(del_len_precision)
 
     crit = (pred_all_df['Genotype Position'] != 'e')
@@ -1044,8 +1038,8 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
     all_gt_precision = 1 - entropy(s) / np.log(len(s))
     d['Precision - All Genotype'].append(all_gt_precision)
 
-    negthree_nt = seq_context[local_cutsite - 1]
-    negfour_nt = seq_context[local_cutsite]
+    negthree_nt = sequence[local_cutsite - 1]
+    negfour_nt = sequence[local_cutsite]
     d['-4 nt'].append(negfour_nt)
     d['-3 nt'].append(negthree_nt)
 
@@ -1056,12 +1050,25 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
     d['Highest Ins Rate'].append(highest_ins_rate)
     d['Highest Del Rate'].append(highest_del_rate)
 
+    # d.append({
+    #   'Sequence Context': sequence
+    #   , 'Local Cutsite': local_cutsite, 'Cas9 gRNA': grna
+    #   , 'Total Phi Score': total_phi_score, '1ins/del Ratio': ins_del_ratio
+    #   , 'Frameshift +0': fs['+0'], 'Frameshift +1': fs['+1']
+    #   , 'Frameshift +2': fs['+2'], 'Frameshift': fs['+1'] + fs['+2']
+    #   , 'Precision - Del Genotype': del_gt_precision, 'Precision - Del Length': del_len_precision
+    #   , 'Precision - All Genotype': all_gt_precision
+    #   , '-4 nt': negfour_nt, '-3 nt': negthree_nt,
+    #   "Highest Ins Rate": highest_ins_rate, 'Highest Del Rate': highest_del_rate
+    # }, ignore_index=True)
+
     if (i - 1) % 50 == 0 and i > 1:
       print('%s pct, %s' % (i / 500, datetime.datetime.now()))
 
     timer.update()
+  return pd.DataFrame(d)
 
-  maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force=True)
+  # maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force=True)
 
 
 def load_ins_models(out_letters):
@@ -1072,7 +1079,7 @@ def load_ins_models(out_letters):
 
 
 def load_neural_networks(out_letters):
-  nn_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
+  nn_params = load_model(out_dir_params + '%s_nn.pkl' % out_letters)
   nn2_params = load_model(out_dir_params + '%s_nn2.pkl' % out_letters)
   return nn_params, nn2_params
 
@@ -1154,4 +1161,11 @@ if __name__ == '__main__':
   # TODO predict function using models above
   print('Prediction')
   lib_df = load_lib_data(data_dir, libX)
-  predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
+  predictions = predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
+  predictions.to_csv(out_dir_stat + 'prediction_output.csv')
+
+  print('Complete Predictions')
+  plt.hist()
+  print('Plotting Graphs')
+
+# Run bulk prediction once out of 300 times
