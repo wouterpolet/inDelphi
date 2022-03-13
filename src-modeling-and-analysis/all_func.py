@@ -7,6 +7,7 @@ import random
 import warnings
 import re
 from collections import defaultdict
+import glob
 
 import autograd.numpy as np
 import autograd.numpy.random as npr
@@ -562,6 +563,7 @@ def knn(merged, total_values):
 
 
 # TODO fix / optimize
+# Issue we do not have the same type of data they have
 def parse_header(header):
   w = header.split('_')
   gene_kgid = w[0].replace('>', '')
@@ -746,10 +748,8 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
     pred_1bpins_d['Predicted_Frequency'].append(freq)  # and freq of 'A' when -4 base is T
 
   pred_1bpins_df = pd.DataFrame(pred_1bpins_d)  # dict -> df
-  pred_all_df = pred_del_df.append(pred_1bpins_df,
-                                   ignore_index=True)  # to dataframe of all unique predicted deletion products, append unique insertion products and rename
-  pred_all_df['Predicted_Frequency'] /= sum(pred_all_df[
-                                              'Predicted_Frequency'])  # normalised frequency of all unique indel products for given sequence and cutsite
+  pred_all_df = pred_del_df.append(pred_1bpins_df, ignore_index=True)  # to dataframe of all unique predicted deletion products, append unique insertion products and rename
+  pred_all_df['Predicted_Frequency'] /= sum(pred_all_df['Predicted_Frequency'])  # normalised frequency of all unique indel products for given sequence and cutsite
 
   return pred_del_df, pred_all_df, total_phi_score, rate_1bpins  # predicted: df of uniq pred'd del products, df of all uniq pred in+del products, total NN1+2 phi score, fraction freq of 1bp ins over all indels
 
@@ -939,32 +939,30 @@ def maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = False):
 
 
 # TODO fix / optimize
-def predict_all_items(prediction_file, df_out_dir, nn_params, nn2_params, rate_model, bp_model, normalizer):
+def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, bp_model, normalizer):
   dd = defaultdict(list)
   dd_shuffled = defaultdict(list)
 
   num_flushed = 0
-  timer = util.Timer(total = util.line_count(prediction_file))
-  with open(prediction_file) as f:
-    for i, line in enumerate(f):
-      if i % 2 == 0:
-        header = line.strip()
-      if i % 2 == 1:
-        sequence = line.strip()
+  timer = util.Timer(len(all_data))
+  # for i, line in enumerate(all_data):
+  for i, line in all_data.iterrows():
+    header = line['name']
+    sequence = line['target']
 
-        if len(sequence) < 60:
-          continue
-        if len(sequence) > 500000:
-          continue
-        # predict for a single exon/intron
-        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)
+    # TODO check what to do
+    # This might be a problem - all of grna len = 55
+    # if len(sequence) < 60 or len(sequence) > 500000:
+    #   continue
 
-        dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
+    # predict for a single exon/intron
+    bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)
+    dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
 
-      if (i - 1) % 50 == 0 and i > 1:
-        print('%s pct, %s' % (i / 500, datetime.datetime.now()))
+    if (i - 1) % 50 == 0 and i > 1:
+      print('%s pct, %s' % (i / 500, datetime.datetime.now()))
 
-      timer.update()
+    timer.update()
 
   maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force=True)
 
@@ -982,6 +980,23 @@ def load_neural_networks(out_letters):
   return nn_params, nn2_params
 
 
+def load_lib_data(folder_dir, libX):
+  names = []
+  grna = []
+  target = []
+  for file in glob.glob(folder_dir + '*-' + libX + '.txt'):
+    file_name = os.path.basename(file)
+    data = open(file, "r").read().splitlines()
+    if 'names' in file_name:
+      names = data
+    elif 'grna' in file_name:
+      grna = data
+    elif 'targets' in file_name:
+      target = data
+  all_data = pd.DataFrame({'name': names, 'grna': grna, 'target': target})
+  return all_data
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
   parser.add_argument('--cached_nn', dest='use_prev_nn_model', type=str, help='Boolean variable indicating if to use cached model or recalculate neural network')
@@ -989,29 +1004,31 @@ if __name__ == '__main__':
   parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
 
   args = parser.parse_args()
+  input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
+  data_dir = os.path.dirname(os.path.dirname(__file__)) + '/data-libprocessing/'
 
   if args.use_prev_nn_model:
     use_nn_model = args.use_prev_nn_model == 'True'
   else:
     use_nn_model = False
 
-  if args.pred_file:
-    prediction_file = args.pred_file
-  else:
-    prediction_file = ''
-
-
-  if args.pred_file:
+  if args.use_prev_knn_model:
     use_knn_model = args.use_prev_knn_model == 'True'
   else:
     use_knn_model = False
 
+  if args.pred_file:
+    prediction_file = args.pred_file
+    libX = 'libA'
+  else:
+    prediction_file = data_dir
+    libX = 'libB'
 
   out_dir, log_fn, out_dir_params, out_dir_stat, out_dir_model, out_dir_exin, out_letters = initialize_files_and_folders(use_nn_model)
   print_and_log("Loading data...", log_fn)
-  input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
 
   counts, del_features = read_data(input_dir + 'dataset.pkl')
+  # counts, del_features = read_data(input_dir + 'U2OS.pkl')
   merged = pd.concat([counts, del_features], axis=1)
   merged = merged.reset_index()
   '''
@@ -1039,4 +1056,5 @@ if __name__ == '__main__':
 
   # TODO predict function using models above
   print('Prediction')
-  predict_all_items(prediction_file, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
+  lib_df = load_lib_data(data_dir, libX)
+  predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
