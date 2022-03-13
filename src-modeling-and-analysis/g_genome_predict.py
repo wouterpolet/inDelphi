@@ -93,6 +93,7 @@ def maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = False):
 ##
 # Prediction
 ##
+# inp_fn: path + file.fa
 def find_cutsites_and_predict(inp_fn, data_nm, split):
   # Calculate statistics on df, saving to alldf_dict
   # Deletion positions
