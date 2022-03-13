@@ -12,14 +12,19 @@ predictions['Highest Ins Rate'] = predictions['Highest Ins Rate'].apply(lambda x
 bins_range = np.asarray(range(1,101))
 print(bins_range)
 
-fig1 = plt.subplot()
+fix, ax = plt.subplots()
 fig_3f_data_del = np.asarray(predictions['Highest Del Rate'])
-plt.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal')
+ax.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal')
+ax.yaxis.tick_right()
+ax.set_xlim(ax.get_xlim()[::-1])
+ax.set_title('Predicted frequency among major editing products using mESC-trained inDelphi (%)', loc='center', wrap=True)
+ax.set_xlabel('Number of Cas9 gRNAs from libB')
 plt.show()
 
-fig2 = plt.subplot()
-fig_3f_data_ins = np.asarray(predictions['Highest Ins Rate'])
-plt.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
-plt.show()
+
+# fig2 = plt.subplot()
+# fig_3f_data_ins = np.asarray(predictions['Highest Ins Rate'])
+# plt.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
+# plt.show()
 
 
