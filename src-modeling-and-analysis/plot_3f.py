@@ -31,7 +31,8 @@ def hist(predictions, save_file=''):
   # plt.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
   # plt.show()
 
+
 if __name__ == '__main__':
   franz_path = "G:/My Drive/3) Work/Study/TU_Delft_MSc_Nanobiology/3-courses/Machine-Learning-in-Bioinformatics/inDelphi/shared/inDelphi/out/aaa/statistics/prediction_output.csv"
   predictions = pd.read_csv(franz_path)
-
+  hist(predictions)
