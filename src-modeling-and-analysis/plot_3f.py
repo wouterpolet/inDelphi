@@ -14,12 +14,12 @@ print(bins_range)
 
 fig1 = plt.subplot()
 fig_3f_data_del = np.asarray(predictions['Highest Del Rate'])
-plt.hist(fig_3f_data_del, range=(0, 100), bins=bins_range)
+plt.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal')
 plt.show()
 
 fig2 = plt.subplot()
 fig_3f_data_ins = np.asarray(predictions['Highest Ins Rate'])
-plt.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range)
+plt.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
 plt.show()
 
 
