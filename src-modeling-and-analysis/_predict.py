@@ -123,7 +123,7 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   # Predict MH-less deletions
   mh_len, gc_frac, gt_pos, del_len = featurize(seq, cutsite)      # same results as previously
 
-  unfq = list(unfq)                                               # unnormalised MH deletion genotype freq distribution
+  unfq = list(unfq)                                               # unnormalised freq distribution of MH deletion genotype
 
   pred_mhless_d = defaultdict(list)
   # Include MH-less contributions at non-full MH deletion lengths
@@ -135,7 +135,7 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
       idx = del_len.index(dl)
       if mh_len[idx] != dl:       #     and is not a full-MH (MH-length = deletion length)
         nonfull_dls.append(dl)
-    else:                         # e.g. if delebution length occurs but occurs more than once?
+    else:                         # e.g. if deletion length occurs but occurs more than once?
         nonfull_dls.append(dl)
 
   mh_vector = np.array(mh_len)

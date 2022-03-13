@@ -72,23 +72,25 @@ def maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = False):
   else:
     line_threshold = 5000
   norm_condition = bool(bool(len(dd['Unique ID']) > line_threshold) and bool(len(dd_shuffled['Unique ID']) > line_threshold))
+  # len ('Unique ID') = 34 chars long + length of gene_kgid, which depends on how long the gene was named in the database
+  # I think that most of the time, norm_condition is False
 
-  if norm_condition or force:
+  if norm_condition or force:                   # Likely False if force = False
     print 'Flushing, num. %s' % (num_flushed)
-    df_out_fn = out_dir + '%s_%s_%s.csv' % (data_nm, split, num_flushed)
-    df = pd.DataFrame(dd)
-    df.to_csv(df_out_fn)
+    df_out_fn = out_dir + '%s_%s_%s.csv' % (data_nm, split, num_flushed)  # data_nm = 'exons'/'introns', split = '0', '', or ?, num_flushed = 0
+    df = pd.DataFrame(dd) # convert sequence info dict into df
+    df.to_csv(df_out_fn)  # turn to csv
 
     df_out_fn = out_dir + '%s_%s_shuffled_%s.csv' % (data_nm, split, num_flushed)
-    df = pd.DataFrame(dd_shuffled)
-    df.to_csv(df_out_fn)
+    df = pd.DataFrame(dd_shuffled)  #  convert flushed sequence info dict into df
+    df.to_csv(df_out_fn)            # turn to csv
 
-    num_flushed += 1
-    dd = defaultdict(list)
-    dd_shuffled = defaultdict(list)
+    num_flushed += 1                # number of saves to csv ('flushing')
+    dd = defaultdict(list)          # and flush out content in dictionary (reinitialise)
+    dd_shuffled = defaultdict(list) # here too
   else:
-    pass
-  return dd, dd_shuffled, num_flushed
+    pass                            # don't flush
+  return dd, dd_shuffled, num_flushed   # if flushed: empty dicts and count of flushes; if not flushed, same dicts and num_flush const.
 
 ##
 # Prediction
@@ -108,27 +110,28 @@ def find_cutsites_and_predict(inp_fn, data_nm, split):
 
   num_flushed = 0
   timer = util.Timer(total = util.line_count(inp_fn))
-  with open(inp_fn) as f:         # open exons or introns database
-    for i, line in enumerate(f):  # for each exon / intron in the database
+  with open(inp_fn) as f:         # as long as exon/intron database is open
+    for i, line in enumerate(f):  #   for each line index and line text in the database
       if i % 2 == 0:
-        header = line.strip()
+        header = line.strip()     #     if line is even numbered, get sequence header info
       if i % 2 == 1:
-        sequence = line.strip()
-
+        sequence = line.strip()   #     if line is odd numbered, get the sequence
+                                  #     and if got the sequence, go on to prediction
         if len(sequence) < 60:
           continue
         if len(sequence) > 500000:
           continue
 
-        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)   # predict for a single exon/intron
-        dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
-
+        bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)
+        # generate dicts (dd and dd_shuffled) for info on each cutsite seq found in the sequence and for a shuffled cutsite sequence
+        dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)  # likely no flush
+        #                               maybe flush out the dict contents into csv and return empty dicts
       if (i - 1) % 50 == 0 and i > 1:
         print '%s pct, %s' % (i / 500, datetime.datetime.now())
 
       timer.update()
 
-  maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = True)
+  maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = True)   # will flush due to forced flushing
   return
 
 def get_indel_len_pred(pred_all_df):
@@ -249,7 +252,8 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
                                                               # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
                                                               #   and normalised frequency distribution of frameshifts
                                                               #   fs = {'+0': [..], '+1': [..], '+2': [..]}
-      # d = zip[dd, dd_shuffled]:
+      # d = zip[dd, dd_shuffled] of dictionary of lists for sequence and shuffled sequence
+      # Keys:
       # 'Sequence Context'
       # 'Local Cutsite'
       # 'Chromosome'
@@ -258,6 +262,22 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       # 'Cas9 gRNA'
       # 'Gene kgID'
       # 'Unique ID'
+      # 'Total Phi Score'
+      # '1ins/del Ratio'
+      # '1ins Rate Model'
+      # '1ins bp Model'
+      # '1ins normalizer'
+      # 'Frameshift +0'     normalised frequency distribution of frameshift +0 (i.e. not a fs)
+      # 'Frameshift +1'     normalised frequency distribution of frameshift +1
+      # 'Frameshift +2'     normalised frequency distribution of frameshift +2
+      # 'Frameshift'        normalised frequency distribution of frameshifts (due to +1 and +2)
+      # 'Precision - Del Genotype'  precision of freq distrib for MH-based deletion genotypes
+      # 'Precision - Del Length'    precision of freq distrib for del lengths 1:60
+      # 'Precision - All Genotype'  precision of freq distrib for MH-based del and 1-bp ins genotypes
+      # '-4 nt'
+      # '-3 nt'
+      # 'Highest Ins Rate'    pred freq for the most freq 1bp ins genotype
+      # 'Highest Del Rate'    pred freq for most freq MH-based del genotype
 
       #
       # Store prediction statistics
@@ -274,9 +294,9 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       d['Frameshift +2'].append(fs['+2'])
       d['Frameshift'].append(fs['+1'] + fs['+2'])
 
-      crit = (pred_del_df['Genotype Position'] != 'e') 
+      crit = (pred_del_df['Genotype Position'] != 'e')    # get only MH-based deletion genotypes
       s = pred_del_df[crit]['Predicted_Frequency']
-      s = np.array(s) / sum(s)
+      s = np.array(s) / sum(s)                            # renormalised freq distrib of only MH-based deletion genotypes
       del_gt_precision = 1 - entropy(s) / np.log(len(s))
       d['Precision - Del Genotype'].append(del_gt_precision)
       
@@ -284,25 +304,25 @@ def bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir):
       for del_len in range(1, 60):
         dlkey = -1 * del_len
         dls.append(indel_len_pred[dlkey])
-      dls = np.array(dls) / sum(dls)
+      dls = np.array(dls) / sum(dls)                      # renormalised freq distrib of del lengths
       del_len_precision = 1 - entropy(dls) / np.log(len(dls))
       d['Precision - Del Length'].append(del_len_precision)
       
-      crit = (pred_all_df['Genotype Position'] != 'e')
+      crit = (pred_all_df['Genotype Position'] != 'e')    # i.e. get only MH-based deletion and 1-bp ins genotypes
       s = pred_all_df[crit]['Predicted_Frequency']
-      s = np.array(s) / sum(s)
+      s = np.array(s) / sum(s)                            # renormalised freq distrib of MH dels and 1-bp ins
       all_gt_precision = 1 - entropy(s) / np.log(len(s))
       d['Precision - All Genotype'].append(all_gt_precision)
 
-      negthree_nt = seq_context[local_cutsite - 1]
+      negthree_nt = seq_context[local_cutsite - 1]    # local_cutsite = 30. I think -1 gives the -4 nt....?
       negfour_nt = seq_context[local_cutsite]
       d['-4 nt'].append(negfour_nt)
       d['-3 nt'].append(negthree_nt)
 
       crit = (pred_all_df['Category'] == 'ins')
-      highest_ins_rate = max(pred_all_df[crit]['Predicted_Frequency'])
+      highest_ins_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for the most freq 1bp ins genotype
       crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Genotype Position'] != 'e')
-      highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])
+      highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for most freq MH-based del genotype
       d['Highest Ins Rate'].append(highest_ins_rate)
       d['Highest Del Rate'].append(highest_del_rate)
 
