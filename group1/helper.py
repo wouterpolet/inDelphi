@@ -10,6 +10,13 @@ from scipy.stats import pearsonr
 def sigmoid(x):
   return 0.5 * (np.tanh(x) + 1.0)
 
+
+def exponential_decay(step_size):
+  if step_size > 0.001:
+      step_size *= 0.999
+  return step_size
+
+
 ##
 # Sequence featurization
 ##
