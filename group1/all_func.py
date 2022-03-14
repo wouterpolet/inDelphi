@@ -21,10 +21,8 @@ from scipy.stats import entropy
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 
-from _predict import find_microhomologies, get_gc_frac
+import helper as helper
 import util as util
-from d2_model import alphabetize, count_num_folders, print_and_log, save_train_test_names \
-  , init_random_params, rsq, save_parameters, nn_match_score_function
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -81,11 +79,11 @@ def initialize_files_and_folders(use_prev):
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
   util.ensure_dir_exists(out_place)
 
-  num_folds = count_num_folders(out_place)
+  num_folds = helper.count_num_folders(out_place)
   if use_prev and num_folds >= 1:
-    out_letters = alphabetize(num_folds - 1)
+    out_letters = helper.alphabetize(num_folds - 1)
   else:
-    out_letters = alphabetize(num_folds)
+    out_letters = helper.alphabetize(num_folds)
 
   out_dir = out_place + out_letters + '/'
   out_dir_params = out_place + out_letters + '/parameters/'
@@ -100,7 +98,7 @@ def initialize_files_and_folders(use_prev):
   log_fn = out_dir + '_log_%s.out' % out_letters
   with open(log_fn, 'w') as f:
     pass
-  print_and_log('out dir: ' + out_dir, log_fn)
+  helper.print_and_log('out dir: ' + out_dir, log_fn)
 
   return out_dir, log_fn, out_dir_params, out_dir_stat, out_dir_model, out_dir_exin, out_letters
 
@@ -139,7 +137,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     ##
     # MH-based deletion frequencies
     ##
-    mh_scores = nn_match_score_function(nn_params, inp[idx])
+    mh_scores = helper.nn_match_score_function(nn_params, inp[idx])
     Js = np.array(del_lens[idx])
     unnormalized_fq = np.exp(mh_scores - 0.25 * Js)
     mh_phi_total = np.sum(unnormalized_fq, dtype=np.float64)
@@ -150,7 +148,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     for jdx in range(len(mh_vector)):                 # for each MH
       if del_lens[idx][jdx] == mh_vector[jdx]:        #     if the deletion length for the indexed MH of that gRNA = MH length (i.e. full MH)
         dl = del_lens[idx][jdx]                       #           store deletion length
-        mhless_score = nn_match_score_function(nn2_params, np.array(dl))    # predict MH-less psi
+        mhless_score = helper.nn_match_score_function(nn2_params, np.array(dl))    # predict MH-less psi
         mhless_score = np.exp(mhless_score - 0.25 * dl)                     # conver to MH-less phi
         mask = np.concatenate([np.zeros(jdx, ), np.ones(1, ) * mhless_score, np.zeros(len(mh_vector) - jdx - 1, )])
         #                      element 1        element 2                     element 3
@@ -180,7 +178,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     ##
     dls = np.arange(1, 28 + 1)
     dls = dls.reshape(28, 1)
-    nn2_scores = nn_match_score_function(nn2_params, dls)
+    nn2_scores = helper.nn_match_score_function(nn2_params, dls)
     unnormalized_nn2 = np.exp(nn2_scores - 0.25 * np.arange(1, 28 + 1))
     mh_less_phi_total = np.sum(unnormalized_nn2, dtype=np.float64)
 
@@ -284,8 +282,8 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
   num_epochs = 50
 
   step_size = 0.10
-  init_nn_params = init_random_params(param_scale, nn_layer_sizes, rs=seed)
-  init_nn2_params = init_random_params(param_scale, nn2_layer_sizes, rs=seed)
+  init_nn_params = helper.init_random_params(param_scale, nn_layer_sizes, rs=seed)
+  init_nn2_params = helper.init_random_params(param_scale, nn2_layer_sizes, rs=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
 
   batch_size = 200
@@ -302,25 +300,25 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
   both_objective_grad = grad(objective, argnum=[0, 1])
 
   def print_perf(nn_params, nn2_params, iter):
-    print_and_log(str(iter), log_fn)
+    helper.print_and_log(str(iter), log_fn)
     if iter % 5 != 0:
       return None
 
     train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
     test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, len(INP_test), seed)
 
-    tr1_rsq, tr2_rsq = rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
-    te1_rsq, te2_rsq = rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test, len(INP_test), seed)
+    tr1_rsq, tr2_rsq = helper.rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
+    te1_rsq, te2_rsq = helper.rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test, len(INP_test), seed)
 
     out_line = ' %s  | %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t|' % (
       iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
-    print_and_log(out_line, log_fn)
+    helper.helper.print_and_log(out_line, log_fn)
 
     if iter % 10 == 0:
-      letters = alphabetize(int(iter / 10))
-      print_and_log(" Iter | Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2", log_fn)
-      print_and_log('%s %s %s' % (datetime.datetime.now(), out_letters, letters), log_fn)
-      save_parameters(nn_params, nn2_params, out_dir_params, letters)
+      letters = helper.alphabetize(int(iter / 10))
+      helper.print_and_log(" Iter | Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2", log_fn)
+      helper.print_and_log('%s %s %s' % (datetime.datetime.now(), out_letters, letters), log_fn)
+      helper.save_parameters(nn_params, nn2_params, out_dir_params, letters)
       if iter >= 10:
         pass
         # plot_mh_score_function(nn_params, out_dir, letters + '_nn')
@@ -338,7 +336,7 @@ def neural_networks(merged):
   seed, nn_layer_sizes, nn2_layer_sizes = initialize_model()
   [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(merged)
 
-  print_and_log("Parsing data...", log_fn)
+  helper.print_and_log("Parsing data...", log_fn)
   INP = []
   for mhl, gcf in zip(mh_lens, gc_fracs):
     inp_point = np.array([mhl, gcf]).T  # N * 2
@@ -351,10 +349,10 @@ def neural_networks(merged):
   NAMES = np.array([str(s) for s in exps])
   DEL_LENS = np.array(del_lens)
 
-  print_and_log("Training model...", log_fn)
+  helper.print_and_log("Training model...", log_fn)
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
-  save_train_test_names(NAMES_train, NAMES_test, out_dir)
+  helper.save_train_test_names(NAMES_train, NAMES_test, out_dir)
   return train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
 
 
@@ -638,7 +636,7 @@ def featurize_seq(seq, cutsite, del_len_limit=DELETION_LEN_LIMIT):  # for each g
     # complementary 3' overhang:     ATATCC
 
     # e.g. del lengh = 6, mhs = [[0, 1, 2], [3, 4], [5], [6]]
-    mhs = find_microhomologies(left, right)
+    mhs = helper.find_microhomologies(left, right)
     for mh in mhs:          # len      3        2      1     1
       mh_len = len(mh) - 1  # len-1    2        1      0     0
       if mh_len > 0:  # i.e. if true MH
@@ -648,7 +646,7 @@ def featurize_seq(seq, cutsite, del_len_limit=DELETION_LEN_LIMIT):  # for each g
         s = cutsite - del_len + gtpos - mh_len  # 27 - 6 + 2 - 2 = 21, cutsite is b/w 27 and 28 (python 26 and 27), cutsite labelled at 27 on python
         e = s + mh_len  # 21 + 2 = 23
         mh_seq = seq[s: e]  # seq[21:23] = TA
-        gc_frac = get_gc_frac(mh_seq)
+        gc_frac = helper.get_gc_frac(mh_seq)
 
         mh_lens.append(mh_len)  # 2
         gc_fracs.append(gc_frac)  # 0%
@@ -680,7 +678,7 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   del_lens = np.array(del_len).T  # input to MH-less NN
 
   # Predict
-  mh_scores = nn_match_score_function(nn_params, pred_input)  # nn_params are the trained MH-NN params
+  mh_scores = helper.nn_match_score_function(nn_params, pred_input)  # nn_params are the trained MH-NN params
   mh_scores = mh_scores.reshape(mh_scores.shape[0], 1)
   Js = del_lens.reshape(del_lens.shape[0], 1)
   # unnormalised MH-NN phi for each MH (each of which corresponds to a unique genotype)
@@ -692,7 +690,7 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   for jdx in range(len(mh_vector)):
     if del_lens[jdx] == mh_vector[jdx]:
       dl = del_lens[jdx]
-      mhless_score = nn_match_score_function(nn2_params, np.array(dl))  # trained nn2_params
+      mhless_score = helper.nn_match_score_function(nn2_params, np.array(dl))  # trained nn2_params
       mhless_score = np.exp(mhless_score - 0.25 * dl)
       mask = np.concatenate([np.zeros(jdx, ), np.ones(1, ) * mhless_score, np.zeros(len(mh_vector) - jdx - 1, )])
       mhfull_contribution = mhfull_contribution + mask
@@ -727,7 +725,7 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
 
   mh_vector = np.array(mh_len)
   for dl in nonfull_dls:  # for each deletion length 1- 60 unaccounted for by MH-NN predictions
-    mhless_score = nn_match_score_function(nn2_params, np.array(dl))  # nn2_params are the trained MH-less NN parameters
+    mhless_score = helper.nn_match_score_function(nn2_params, np.array(dl))  # nn2_params are the trained MH-less NN parameters
     mhless_score = np.exp(mhless_score - 0.25 * dl)  # get its the MH-less phi
 
     # unnormalised scores for MH-based deletion genotypes + unnormalised scores for each unacccounted for MH-less based genotype
@@ -1239,7 +1237,7 @@ if __name__ == '__main__':
     libX = 'libB'
 
   out_dir, log_fn, out_dir_params, out_dir_stat, out_dir_model, out_dir_exin, out_letters = initialize_files_and_folders(use_nn_model)
-  print_and_log("Loading data...", log_fn)
+  helper.print_and_log("Loading data...", log_fn)
 
   counts, del_features = read_data(input_dir + 'dataset.pkl')
   # counts, del_features = read_data(input_dir + 'U2OS.pkl')
@@ -1250,10 +1248,10 @@ if __name__ == '__main__':
   Model Creation, Training & Optimization
   '''
   if not use_nn_model:
-    print_and_log("Training Neural Networks...", log_fn)
+    helper.print_and_log("Training Neural Networks...", log_fn)
     nn_params, nn2_params = neural_networks(merged)
   else:
-    print_and_log("Loading Neural Networks...", log_fn)
+    helper.print_and_log("Loading Neural Networks...", log_fn)
     nn_params, nn2_params = load_neural_networks(out_letters)
 
   '''
@@ -1261,11 +1259,11 @@ if __name__ == '__main__':
   Model Creation, Training & Optimization
   '''
   if not use_knn_model:
-    print_and_log("Training KNN...", log_fn)
+    helper.print_and_log("Training KNN...", log_fn)
     total_values = load_model(out_dir_params + 'total_phi_delfreq.pkl')
     rate_model, bp_model, normalizer = knn(merged, total_values)
   else:
-    print_and_log("Loading KNN...", log_fn)
+    helper.print_and_log("Loading KNN...", log_fn)
     rate_model, bp_model, normalizer = load_ins_models(out_letters)
 
   # Using Chromosome Data
