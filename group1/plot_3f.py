@@ -1,15 +1,14 @@
 # Figure 3f plotting
 import pandas as pd
-import matplotlib.pyplot as plt
-
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def hist(predictions, save_file=''):
-  predictions['Highest Del Rate'] = predictions['Highest Del Rate'].apply(lambda x: x*100)
-  predictions['Highest Ins Rate'] = predictions['Highest Ins Rate'].apply(lambda x: x*100)
+  predictions['Highest Del Rate'] = predictions['Highest Del Rate'].apply(lambda x: x * 100)
+  predictions['Highest Ins Rate'] = predictions['Highest Ins Rate'].apply(lambda x: x * 100)
 
-  bins_range = np.asarray(range(1,101))
+  bins_range = np.asarray(range(1, 101))
   print(bins_range)
 
   fix, (ax1, ax2) = plt.subplots(1, 2)
@@ -21,7 +20,6 @@ def hist(predictions, save_file=''):
   count, bins, patches = ax1.hist(data, 100, orientation='horizontal')
   ax1.spines['left'].set_visible(False)
   ax1.spines['top'].set_visible(False)
-
 
   for i in range(0, 30):
     patches[i].set_facecolor('lightcoral')
@@ -58,13 +56,6 @@ def hist(predictions, save_file=''):
 
   if save_file != '':
     plt.savefig(save_file)
-
-
-
-  # fig2 = plt.subplot()
-  # fig_3f_data_ins = np.asarray(predictions['Highest Ins Rate'])
-  # plt.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
-  # plt.show()
 
 
 if __name__ == '__main__':

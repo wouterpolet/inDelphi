@@ -24,7 +24,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 DELETION_LEN_LIMIT = 28
 
-
 def initialize_files_and_folders(use_prev):
   # Set output location of model & params
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
