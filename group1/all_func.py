@@ -21,7 +21,7 @@ from scipy.stats import entropy
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 
-import helper as helper
+import helper
 import util as util
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -312,7 +312,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
 
     out_line = ' %s  | %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t|' % (
       iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
-    helper.helper.print_and_log(out_line, log_fn)
+    helper.print_and_log(out_line, log_fn)
 
     if iter % 10 == 0:
       letters = helper.alphabetize(int(iter / 10))
@@ -493,7 +493,7 @@ def calc_1bp_ins_statistics(all_data, exp, alldf_dict):
 
 
 def convert_oh_string_to_nparray(input):
-  input = input.replace('[', '').replace(']', '')
+  input = str(input).replace('[', '').replace(']', '')
   nums = input.split(' ')
   return np.array([int(s) for s in nums])
 
@@ -850,173 +850,181 @@ def get_cutsites(chrom, sequence):
   return all_cutsites
 
 
-def bulk_predict(sequence, d):
-
-
-
+def bulk_predict(seq, d):
   # Input: A specific sequence
   # Find all Cas9 cutsites, gather metadata, and run inDelphi
-  total_len = len(sequence)
+  total_len = len(seq)
   all_cutsites = []
-  for idx in range(len(sequence)):  # for each base in the sequence
+  '''
+  # for idx in range(len(sequence)):  # for each base in the sequence
     # this loop finishes only each of 5% of all found cutsites with 60-bp long sequences containing only ACGT
-    seq = ''
-    if sequence[idx: idx + 2] == 'CC':  # if on top strand find CC
-      cutsite = idx + 6  # cut site of complementary GG is +6 away
-      seq = sequence[cutsite - 30: cutsite + 30]  # get sequence 30bp L and R of cutsite
-      seq = reverse_complement(seq)  # compute reverse strand (complimentary) to target with gRNA
-      orientation = '-'
-    if sequence[idx: idx + 2] == 'GG':  # if GG on top strand
-      cutsite = idx - 4  # cut site is -4 away
-      seq = sequence[cutsite - 30: cutsite + 30]  # get seq 30bp L and R of cutsite
-      orientation = '+'
-    if seq == '':
-      continue
-    if len(seq) != 60:
-      continue
+  seq = ''
+  if sequence[idx: idx + 2] == 'CC':  # if on top strand find CC
+    cutsite = idx + 6  # cut site of complementary GG is +6 away
+    seq = sequence[cutsite - 30: cutsite + 30]  # get sequence 30bp L and R of cutsite
+    seq = reverse_complement(seq)  # compute reverse strand (complimentary) to target with gRNA
+    orientation = '-'
+  if sequence[idx: idx + 2] == 'GG':  # if GG on top strand
+    cutsite = idx - 4  # cut site is -4 away
+    seq = sequence[cutsite - 30: cutsite + 30]  # get seq 30bp L and R of cutsite
+    orientation = '+'
+  if seq == '':
+    continue
+  if len(seq) != 60:
+    continue
+  
+  # Sanitize input
+  seq = seq.upper()
+  if 'N' in seq:  # if N in collected sequence, return to start of for loop / skip rest
+    continue
+  if not re.match('^[ACGT]*$', seq):  # if there not only ACGT in seq, ^
+    continue
 
-    # Sanitize input
-    seq = seq.upper()
-    if 'N' in seq:  # if N in collected sequence, return to start of for loop / skip rest
-      continue
-    if not re.match('^[ACGT]*$', seq):  # if there not only ACGT in seq, ^
-      continue
+  # Store found cutsite
+  # if True:
+  all_cutsites.append(seq)
 
-    # Store found cutsite
-    # if True:
-    all_cutsites.append(seq)
-    continue #TODO remove and replace with new func
+  # Randomly query subset for broad shallow coverage
+  r = random.random()
+  if (idx - 1) % 1000000 == 0 and idx > 1:
+    print('%s index out of %s: %s' % (idx - 1, total_len, datetime.datetime.now()))
 
-    # Randomly query subset for broad shallow coverage
-    r = np.random.random()
-    if (idx - 1) % 1000000 == 0 and idx > 1:
-      print('%s index out of %s: %s' % (idx - 1, total_len, datetime.datetime.now()))
+  if r > (1/350):
+    continue  # randomly decide if will predict on the found cutsite or not. 5% of time will
+  '''
 
-    if r > (1/350):
-      continue  # randomly decide if will predict on the found cutsite or not. 5% of time will
 
-    # for one set of sequence context and its shuffled counterpart
-    #
-    # Store metadata statistics
-    #
-    local_cutsite = 30
-    grna = seq[13:33]
-    # cutsite_coord = start + idx
-    # unique_id = '%s_%s_hg38_%s_%s_%s' % (gene_kgid, grna, chrom, cutsite_coord, orientation)
 
-    # the SpCas9 gRNAs targeting exons and introns
-    d['Sequence Context'].append(seq)
-    d['Local Cutsite'].append(local_cutsite)
-    # d['Chromosome'].append(chrom)
-    # d['Cutsite Location'].append(cutsite_coord)
-    d['Orientation'].append(orientation)
-    d['Cas9 gRNA'].append(grna)
-    # d['Gene kgID'].append(gene_kgid)
-    # d['Unique ID'].append(unique_id)
+  # for one set of sequence context and its shuffled counterpart
+  #
+  # Store metadata statistics
+  #
+  local_cutsite = 30
+  grna = seq[13:33]
+  # cutsite_coord = start + idx
+  # unique_id = '%s_%s_hg38_%s_%s_%s' % (gene_kgid, grna, chrom, cutsite_coord, orientation)
 
-    # Make predictions for each SpCas9 gRNA targeting exons and introns
-    ans = predict_all(seq, local_cutsite,  # seq_context is a tuple/pair? of seq and shuffled_seq
-                               rate_model, bp_model, normalizer)  # trained k-nn, bp summary dict, normalizer
-    pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans  #
-    # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
-    # pred_del_df = df of predicted unique del products             for sequence context and cutsite
-    # pred_all_df = df of all predicted unique in+del products          ^
-    # total_phi_score = total NN1+2 phi score                           ^
-    # ins_del_ratio = fraction frequency of 1bp ins over all indels     ^
+  # the SpCas9 gRNAs targeting exons and introns
+  # d['Sequence Context'].append(seq)
+  # d['Local Cutsite'].append(local_cutsite)
+  # d['Chromosome'].append(chrom)
+  # d['Cutsite Location'].append(cutsite_coord)
+  # d['Orientation'].append(orientation)
+  # d['Cas9 gRNA'].append(grna)
+  # d['Gene kgID'].append(gene_kgid)
+  # d['Unique ID'].append(unique_id)
 
-    # pred_all_df ( pred_del_df only has the first 4 columns, and only with info for dels):
-    #   'Length'                predicted in/del length
-    #   'Genotype Position'     predicted delta (useful only for dels)
-    #   'Predicted_Frequency'   predicted normalised in/del frequency
-    #   'Category'              deletion/insertion
-    #   'Inserted Bases'        predicted inserted base (useful only for ins)
+  # Make predictions for each SpCas9 gRNA targeting exons and introns
+  ans = predict_all(seq, local_cutsite,  # seq_context is a tuple/pair? of seq and shuffled_seq
+                             rate_model, bp_model, normalizer)  # trained k-nn, bp summary dict, normalizer
+  pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans  #
+  # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
+  # pred_del_df = df of predicted unique del products             for sequence context and cutsite
+  # pred_all_df = df of all predicted unique in+del products          ^
+  # total_phi_score = total NN1+2 phi score                           ^
+  # ins_del_ratio = fraction frequency of 1bp ins over all indels     ^
 
-    # Save predictions
-    # del_df_out_fn = df_out_dir + '%s_%s_%s.csv' % (unique_id, 'dels', shuffled_nm)
-    # pred_del_df.to_csv(del_df_out_fn)
-    # all_df_out_fn = df_out_dir + '%s_%s_%s.csv' % (unique_id, 'all', shuffled_nm)
-    # pred_all_df.to_csv(all_df_out_fn)
+  # pred_all_df ( pred_del_df only has the first 4 columns, and only with info for dels):
+  #   'Length'                predicted in/del length
+  #   'Genotype Position'     predicted delta (useful only for dels)
+  #   'Predicted_Frequency'   predicted normalised in/del frequency
+  #   'Category'              deletion/insertion
+  #   'Inserted Bases'        predicted inserted base (useful only for ins)
 
-    ## Translate predictions to indel length frequencies
-    indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60)  # normalised frequency distributon on indel lengths
-    # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
-    #   and normalised frequency distribution of frameshifts
-    #   fs = {'+0': [..], '+1': [..], '+2': [..]}
-    # d = zip[dd, dd_shuffled] of dictionary of lists for sequence and shuffled sequence
-    # Keys:
-    # 'Sequence Context'
-    # 'Local Cutsite'
-    # 'Chromosome'
-    # 'Cutsite Location'
-    # 'Orientation'
-    # 'Cas9 gRNA'
-    # 'Gene kgID'
-    # 'Unique ID'
-    # 'Total Phi Score'
-    # '1ins/del Ratio'
-    # '1ins Rate Model'
-    # '1ins bp Model'
-    # '1ins normalizer'
-    # 'Frameshift +0'     normalised frequency distribution of frameshift +0 (i.e. not a fs)
-    # 'Frameshift +1'     normalised frequency distribution of frameshift +1
-    # 'Frameshift +2'     normalised frequency distribution of frameshift +2
-    # 'Frameshift'        normalised frequency distribution of frameshifts (due to +1 and +2)
-    # 'Precision - Del Genotype'  precision of freq distrib for MH-based deletion genotypes
-    # 'Precision - Del Length'    precision of freq distrib for del lengths 1:60
-    # 'Precision - All Genotype'  precision of freq distrib for MH-based del and 1-bp ins genotypes
-    # '-4 nt'
-    # '-3 nt'
-    # 'Highest Ins Rate'    pred freq for the most freq 1bp ins genotype
-    # 'Highest Del Rate'    pred freq for most freq MH-based del genotype
+  # Save predictions
+  # del_df_out_fn = df_out_dir + '%s_%s_%s.csv' % (unique_id, 'dels', shuffled_nm)
+  # pred_del_df.to_csv(del_df_out_fn)
+  # all_df_out_fn = df_out_dir + '%s_%s_%s.csv' % (unique_id, 'all', shuffled_nm)
+  # pred_all_df.to_csv(all_df_out_fn)
 
-    #
-    # Store prediction statistics
-    #
-    d['Total Phi Score'].append(total_phi_score)
-    d['1ins/del Ratio'].append(ins_del_ratio)
+  ## Translate predictions to indel length frequencies
+  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60)  # normalised frequency distributon on indel lengths TODO: extract
+  # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
+  #   and normalised frequency distribution of frameshifts
+  #   fs = {'+0': [..], '+1': [..], '+2': [..]}
+  # d = zip[dd, dd_shuffled] of dictionary of lists for sequence and shuffled sequence
+  # Keys:
+  # 'Sequence Context'
+  # 'Local Cutsite'
+  # 'Chromosome'
+  # 'Cutsite Location'
+  # 'Orientation'
+  # 'Cas9 gRNA'
+  # 'Gene kgID'
+  # 'Unique ID'
+  # 'Total Phi Score'
+  # '1ins/del Ratio'
+  # '1ins Rate Model'
+  # '1ins bp Model'
+  # '1ins normalizer'
+  # 'Frameshift +0'     normalised frequency distribution of frameshift +0 (i.e. not a fs)
+  # 'Frameshift +1'     normalised frequency distribution of frameshift +1
+  # 'Frameshift +2'     normalised frequency distribution of frameshift +2
+  # 'Frameshift'        normalised frequency distribution of frameshifts (due to +1 and +2)
+  # 'Precision - Del Genotype'  precision of freq distrib for MH-based deletion genotypes
+  # 'Precision - Del Length'    precision of freq distrib for del lengths 1:60
+  # 'Precision - All Genotype'  precision of freq distrib for MH-based del and 1-bp ins genotypes
+  # '-4 nt'
+  # '-3 nt'
+  # 'Highest Ins Rate'    pred freq for the most freq 1bp ins genotype
+  # 'Highest Del Rate'    pred freq for most freq MH-based del genotype
 
-    d['1ins Rate Model'].append(rate_model)
-    d['1ins bp Model'].append(bp_model)
-    d['1ins normalizer'].append(normalizer)
+  #
+  # Store prediction statistics
+  #
+  # d['Total Phi Score'].append(total_phi_score)
+  # d['1ins/del Ratio'].append(ins_del_ratio)
 
-    d['Frameshift +0'].append(fs['+0'])
-    d['Frameshift +1'].append(fs['+1'])
-    d['Frameshift +2'].append(fs['+2'])
-    d['Frameshift'].append(fs['+1'] + fs['+2'])
+  # d['1ins Rate Model'].append(rate_model)
+  # d['1ins bp Model'].append(bp_model)
+  # d['1ins normalizer'].append(normalizer)
 
-    crit = (pred_del_df['Genotype Position'] != 'e')  # get only MH-based deletion genotypes
-    s = pred_del_df[crit]['Predicted_Frequency']
-    s = np.array(s) / sum(s)  # renormalised freq distrib of only MH-based deletion genotypes
-    del_gt_precision = 1 - entropy(s) / np.log(len(s))
-    d['Precision - Del Genotype'].append(del_gt_precision)
+  # d['Frameshift +0'].append(fs['+0'])
+  # d['Frameshift +1'].append(fs['+1'])
+  # d['Frameshift +2'].append(fs['+2'])
+  # d['Frameshift'].append(fs['+1'] + fs['+2'])
 
-    dls = []
-    for del_len in range(1, 60):
-      dlkey = -1 * del_len
-      dls.append(indel_len_pred[dlkey])
-    dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
-    del_len_precision = 1 - entropy(dls) / np.log(len(dls))
-    d['Precision - Del Length'].append(del_len_precision)
+  crit = (pred_del_df['Genotype Position'] != 'e')  # get only MH-based deletion genotypes
+  s = pred_del_df[crit]['Predicted_Frequency']
+  s = np.array(s) / sum(s)  # renormalised freq distrib of only MH-based deletion genotypes
+  del_gt_precision = 1 - entropy(s) / np.log(len(s))
+  # d['Precision - Del Genotype'].append(del_gt_precision)
 
-    crit = (pred_all_df['Genotype Position'] != 'e')  # i.e. get only MH-based deletion and 1-bp ins genotypes
-    s = pred_all_df[crit]['Predicted_Frequency']
-    s = np.array(s) / sum(s)  # renormalised freq distrib of MH dels and 1-bp ins
-    all_gt_precision = 1 - entropy(s) / np.log(len(s))
-    d['Precision - All Genotype'].append(all_gt_precision)
+  dls = []
+  for del_len in range(1, 60):
+    dlkey = -1 * del_len
+    dls.append(indel_len_pred[dlkey])
+  dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
+  del_len_precision = 1 - entropy(dls) / np.log(len(dls))
+  # d['Precision - Del Length'].append(del_len_precision)
 
-    negthree_nt = seq[local_cutsite]  # local_cutsite = 30. I think -1 gives the -4 nt....?
-    negfour_nt = seq[local_cutsite - 1]
-    d['-4 nt'].append(negfour_nt)
-    d['-3 nt'].append(negthree_nt)
+  crit = (pred_all_df['Genotype Position'] != 'e')  # i.e. get only MH-based deletion and 1-bp ins genotypes
+  s = pred_all_df[crit]['Predicted_Frequency']
+  s = np.array(s) / sum(s)  # renormalised freq distrib of MH dels and 1-bp ins TODO: extract
+  all_gt_precision = 1 - entropy(s) / np.log(len(s))
+  # d['Precision - All Genotype'].append(all_gt_precision)
 
-    crit = (pred_all_df['Category'] == 'ins')
-    highest_ins_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for the most freq 1bp ins genotype
-    crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Genotype Position'] != 'e')
-    highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for most freq MH-based del genotype
-    d['Highest Ins Rate'].append(highest_ins_rate)
-    d['Highest Del Rate'].append(highest_del_rate)
-  return
+  negthree_nt = seq[local_cutsite]  # local_cutsite = 30. I think -1 gives the -4 nt....?
+  negfour_nt = seq[local_cutsite - 1]
+  # d['-4 nt'].append(negfour_nt)
+  # d['-3 nt'].append(negthree_nt)
 
+  crit = (pred_all_df['Category'] == 'ins')
+  highest_ins_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for the most freq 1bp ins genotype
+  crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Genotype Position'] != 'e')
+  highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for most freq MH-based del genotype
+  # d['Highest Ins Rate'].append(highest_ins_rate)
+  # d['Highest Del Rate'].append(highest_del_rate)
+  return (seq, indel_len_pred, s)
+
+def bulk_predict_all(lib_df):
+  res = []
+  size = len(lib_df)
+  for i, seq in lib_df['target'].iteritems():
+    if i % 100 == 0:
+      print(f'Predicted {i} out of {size} sequences')
+    res.append(bulk_predict(seq, {}))
+  return res
 
 def find_cutsites_and_predict(inp_fn, use_file=''):
   # Loading Cutsites
@@ -1269,17 +1277,23 @@ if __name__ == '__main__':
   # Using Chromosome Data
   # inp_fn = input_dir + 'Homo_sapiens.GRCh38.dna.chromosome.1.fa'
   inp_fn = input_dir + 'chromosome/'
-  find_cutsites_and_predict(inp_fn, use_file='')
+  # find_cutsites_and_predict(inp_fn, use_file='')
 
 
   # Using liBX data
   output_predictions_file = (out_dir_stat + 'prediction_output_' + libX + '.csv')
+  output_extended_predictions_file = f'{out_dir_stat}extended_prediction_output{libX}.pkl'
   if not only_plots:
     print('Prediction')
     lib_df = load_lib_data(data_dir, libX)
-    predictions = predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
-    predictions.to_csv(output_predictions_file)
+    # predictions = predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
+    # predictions.to_csv(output_predictions_file)
     print('Complete Predictions')
+    print('More predictions, per sequence, for extended figure')
+    extended_preds = bulk_predict_all(lib_df)
+    with open(output_extended_predictions_file, 'wb') as out_file:
+      pickle.dump(extended_preds, out_file)
+    print('More predictions done!')
   else:
     predictions = pd.read_csv(output_predictions_file)
 
