@@ -59,6 +59,10 @@ def parse_data(merged):
     del_lens.append(mh_exp_data['Size'].astype('int32'))
 
     curr_dl_freqs = []
+    # all_dels = deletions[deletions['Sample_Name'] == exp][['countEvents', 'Size']]
+    # total_count = sum(all_dels['countEvents'])
+    # all_dels['countEvents'] = all_dels['countEvents'].div(total_count)
+    # dl_freq_df = all_dels[all_dels['Size'] <= 28]
     dl_freq_df = mh_exp_data[mh_exp_data['Size'] <= 28]
     for del_len in range(1, 28 + 1):
       dl_freq = sum(dl_freq_df[dl_freq_df['Size'] == del_len]['countEvents'])
@@ -131,7 +135,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
   LOSS = 0
   test1 = []
   total_phi_del_freq = []  # 1961 x 1
-  for idx in range(len(inp)):  # for each gRNA
+  for idx in range(len(inp)):  # for each gRNA's zipped [MH lengths, MH GC fracs] in the training set
     ##
     # MH-based deletion frequencies
     ##
@@ -141,14 +145,15 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     mh_phi_total = np.sum(unnormalized_fq, dtype=np.float64)
 
     # Add MH-less contribution at full MH deletion lengths
-    mh_vector = inp[idx].T[0]
-    mhfull_contribution = np.zeros(mh_vector.shape)
-    for jdx in range(len(mh_vector)):
-      if del_lens[idx][jdx] == mh_vector[jdx]:
-        dl = del_lens[idx][jdx]
-        mhless_score = nn_match_score_function(nn2_params, np.array(dl))
-        mhless_score = np.exp(mhless_score - 0.25 * dl)
+    mh_vector = inp[idx].T[0]                         # vector of all MH lengths for each MH
+    mhfull_contribution = np.zeros(mh_vector.shape)   # vector of 0s, one for each MH
+    for jdx in range(len(mh_vector)):                 # for each MH
+      if del_lens[idx][jdx] == mh_vector[jdx]:        #     if the deletion length for the indexed MH of that gRNA = MH length (i.e. full MH)
+        dl = del_lens[idx][jdx]                       #           store deletion length
+        mhless_score = nn_match_score_function(nn2_params, np.array(dl))    # predict MH-less psi
+        mhless_score = np.exp(mhless_score - 0.25 * dl)                     # conver to MH-less phi
         mask = np.concatenate([np.zeros(jdx, ), np.ones(1, ) * mhless_score, np.zeros(len(mh_vector) - jdx - 1, )])
+        #                      element 1        element 2                     element 3
         mhfull_contribution = mhfull_contribution + mask
     unnormalized_fq = unnormalized_fq + mhfull_contribution
     normalized_fq = np.divide(unnormalized_fq, np.sum(unnormalized_fq))
