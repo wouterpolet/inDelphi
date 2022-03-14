@@ -183,7 +183,7 @@ def generate_models(X, Y, bp_stats, Normalizer):
   # Train rate model
   model = KNeighborsRegressor()
   model.fit(X, Y)
-  with open(out_dir_model + '%s_rate_model.pkl' % out_letters, 'wb') as f:
+  with open(out_dir_model + 'rate_model.pkl', 'wb') as f:
     pickle.dump(model, f)
 
   # Obtain bp stats
@@ -199,20 +199,18 @@ def generate_models(X, Y, bp_stats, Normalizer):
     for bp, freq in zip(list('ACGT'), mean_vals):
       bp_model[base][bp] = freq / sum(mean_vals)
 
-  with open(out_dir_model + '%s_bp_model.pkl' % out_letters, 'wb') as f:
+  with open(out_dir_model + 'bp_model.pkl', 'wb') as f:
     pickle.dump(bp_model, f)
 
-  with open(out_dir_model + '%s_Normalizer.pkl' % out_letters, 'wb') as f:
+  with open(out_dir_model + 'Normalizer.pkl', 'wb') as f:
     pickle.dump(Normalizer, f)
 
   return model, bp_model, Normalizer
 
 
-def train_knn(all_data, total_values, out_dir, out_let, out_stat):
+def train_knn(all_data, total_values, out_dir, out_stat):
   global out_dir_model
   out_dir_model = out_dir
-  global out_letters
-  out_letters = out_let
   global out_dir_stat
   out_dir_stat = out_stat
 

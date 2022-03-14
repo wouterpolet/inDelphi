@@ -183,7 +183,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
   return LOSS / num_samples
 
 
-def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters):
+def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
   param_scale = 0.1
   # num_epochs = 7*200 + 1
   global num_epochs
@@ -220,12 +220,12 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params,
 
     out_line = ' %s  | %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t|' % (
       iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
-    helper.helper.print_and_log(out_line, log_fn)
+    helper.print_and_log(out_line, log_fn)
 
     if iter % 10 == 0:
       letters = helper.alphabetize(int(iter / 10))
       helper.print_and_log(" Iter | Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2", log_fn)
-      helper.print_and_log('%s %s %s' % (datetime.datetime.now(), out_letters, letters), log_fn)
+      helper.print_and_log('%s %s %s' % (datetime.datetime.now(), exec_id, letters), log_fn)
       helper.save_parameters(nn_params, nn2_params, out_dir_params, letters)
       if iter >= 10:
         pass
@@ -272,14 +272,13 @@ def adam_minmin(grad_both, init_params_nn, init_params_nn2, callback=None, num_i
   return unflatten_nn(x_nn), unflatten_nn2(x_nn2)
 
 
-def create_neural_networks(merged, log, out_directory, out_params, out_let):
+def create_neural_networks(merged, log, out_directory, exec_id):
   """
   Create and Train the Nueral Networks (Microhomology and microhomology less networks)
   @param merged: all the data (del_features and counts) provided in the file
   @param log: log file
   @param out_directory: Output directory
-  @param out_params: Output letter - model identifier
-  @param out_let: Output directory for the parameters
+  @param exec_id: Execution ID
   @return: the trained neural networks (2)
   """
   global log_fn
@@ -287,9 +286,7 @@ def create_neural_networks(merged, log, out_directory, out_params, out_let):
   global out_dir
   out_dir = out_directory
   global out_dir_params
-  out_dir_params = out_params
-  global out_letters
-  out_letters = out_let
+  out_dir_params = out_dir + 'parameters/'
 
   seed, nn_layer_sizes, nn2_layer_sizes = initialize_model()
   [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(merged)
@@ -311,4 +308,4 @@ def create_neural_networks(merged, log, out_directory, out_params, out_let):
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   helper.save_train_test_names(NAMES_train, NAMES_test, out_dir)
-  return train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, out_dir_params, out_letters)
+  return train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)

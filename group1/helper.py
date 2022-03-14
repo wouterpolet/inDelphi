@@ -13,7 +13,7 @@ def sigmoid(x):
 
 def exponential_decay(step_size):
   if step_size > 0.001:
-      step_size *= 0.999
+    step_size *= 0.999
   return step_size
 
 
@@ -23,45 +23,51 @@ def exponential_decay(step_size):
 def get_gc_frac(seq):
   return (seq.count('C') + seq.count('G')) / len(seq)
 
-def find_microhomologies(left, right):            # for a given pair of resected left and right strands, equally long
-  start_idx = max(len(right) - len(left), 0)      # TAGATT - TATAGG = 0
+
+def find_microhomologies(left, right):  # for a given pair of resected left and right strands, equally long
+  start_idx = max(len(right) - len(left), 0)  # TAGATT - TATAGG = 0
   mhs = []
-  mh = [start_idx]                                # [0]
-  for idx in range(min(len(right), len(left))):   # for each base in the overhangs
+  mh = [start_idx]  # [0]
+  for idx in range(min(len(right), len(left))):  # for each base in the overhangs
     # {--left[idx] == right[idx]--} = {--left[idx] complementary to reverse_right[star_idx+idx]--}
     if left[idx] == right[start_idx + idx]:
-                                                  # TAGATT    2 MHs
-                                                  # || |
-                                                  # ATATCC
-                                                  # 012345
-                                        # gt pos    123456
-                                        # MH 1 del outcome: GTGCTCTTAACTTTCACTTTATATAGGGTTAATAAATGGGAATTTATAT
-                                        # MH 2 del outcome: GTGCTCTTAACTTTCACTTTATAGAGGGTTAATAAATGGGAATTTATAT
+      # TAGATT    2 MHs
+      # || |
+      # ATATCC
+      # 012345
+      # gt pos    123456
+      # MH 1 del outcome: GTGCTCTTAACTTTCACTTTATATAGGGTTAATAAATGGGAATTTATAT
+      # MH 2 del outcome: GTGCTCTTAACTTTCACTTTATAGAGGGTTAATAAATGGGAATTTATAT
       mh.append(start_idx + idx + 1)
     else:
       mhs.append(mh)
-      mh = [start_idx + idx +1]
+      mh = [start_idx + idx + 1]
   mhs.append(mh)
-  return mhs                                                #                              1234567890123456789012345678901234567890123456789012345
-                                                            #                              0123456789012345678901234567890123456789012345678901234
-                                                            # MH 1 outcome:                GTGCTCTTAACTTTCACTTTATA------TAGGGTTAATAAATGGGAATTTATAT, gt pos 2, del len 6
-                                                            # MH 2 outcome:                GTGCTCTTAACTTTCACTTTATAGA------GGGTTAATAAATGGGAATTTATAT, gt pos 4, del len 6
+  return mhs  # 1234567890123456789012345678901234567890123456789012345
+  #                              0123456789012345678901234567890123456789012345678901234
+  # MH 1 outcome:                GTGCTCTTAACTTTCACTTTATA------TAGGGTTAATAAATGGGAATTTATAT, gt pos 2, del len 6
+  # MH 2 outcome:                GTGCTCTTAACTTTCACTTTATAGA------GGGTTAATAAATGGGAATTTATAT, gt pos 4, del len 6
+
 
 ##
 # Setup environment
 ##
 def alphabetize(num):
-  assert num < 26**3, 'num bigger than 17576'
-  mapper = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h', 8: 'i', 9: 'j', 10: 'k', 11: 'l', 12: 'm', 13: 'n', 14: 'o', 15: 'p', 16: 'q', 17: 'r', 18: 's', 19: 't', 20: 'u', 21: 'v', 22: 'w', 23: 'x', 24: 'y', 25: 'z'}
-  hundreds = int(num / (26*26)) % 26
+  assert num < 26 ** 3, 'num bigger than 17576'
+  mapper = {0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: 'e', 5: 'f', 6: 'g', 7: 'h', 8: 'i', 9: 'j', 10: 'k', 11: 'l', 12: 'm',
+            13: 'n', 14: 'o', 15: 'p', 16: 'q', 17: 'r', 18: 's', 19: 't', 20: 'u', 21: 'v', 22: 'w', 23: 'x', 24: 'y',
+            25: 'z'}
+  hundreds = int(num / (26 * 26)) % 26
   tens = int(num / 26) % 26
   ones = num % 26
   return ''.join([mapper[hundreds], mapper[tens], mapper[ones]])
+
 
 def count_num_folders(out_dir):
   for fold in os.listdir(out_dir):
     assert os.path.isdir(out_dir + fold), 'Not a folder!'
   return len(os.listdir(out_dir))
+
 
 def print_and_log(text, log_fn):
   with open(log_fn, 'a') as f:
@@ -69,22 +75,24 @@ def print_and_log(text, log_fn):
   print(text)
   return
 
+
 def save_train_test_names(train_nms, test_nms, out_dir):
   with open(out_dir + 'train_exps.csv', 'w') as f:
-    f.write( ','.join(['Exp']) + '\n')
+    f.write(','.join(['Exp']) + '\n')
     for i in xrange(len(train_nms)):
-      f.write( ','.join([train_nms[i]]) + '\n' )
+      f.write(','.join([train_nms[i]]) + '\n')
   with open(out_dir + 'test_exps.csv', 'w') as f:
-    f.write( ','.join(['Exp']) + '\n')
+    f.write(','.join(['Exp']) + '\n')
     for i in xrange(len(test_nms)):
-      f.write( ','.join([test_nms[i]]) + '\n' )
+      f.write(','.join([test_nms[i]]) + '\n')
   return
+
 
 def init_random_params(scale, layer_sizes, rs=npr.RandomState(0)):
   """Build a list of (weights, biases) tuples,
      one for each layer in the net."""
-  return [(scale * rs.randn(m, n),   # weight matrix
-           scale * rs.randn(n))      # bias vector
+  return [(scale * rs.randn(m, n),  # weight matrix
+           scale * rs.randn(n))  # bias vector
           for m, n in zip(layer_sizes[:-1], layer_sizes[1:])]
 
 
@@ -139,6 +147,7 @@ def rsq(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs):
     rsqs2.append(rsq2)
 
   return rsqs1, rsqs2
+
 
 ##
 # Plotting and Writing
