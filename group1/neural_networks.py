@@ -276,10 +276,10 @@ def create_neural_networks(merged, log, out_directory, out_params, out_let):
   """
   Create and Train the Nueral Networks (Microhomology and microhomology less networks)
   @param merged: all the data (del_features and counts) provided in the file
-  @param log_fn: log file
-  @param out_dir: Output directory
-  @param out_letters: Output letter - model identifier
-  @param out_dir_params: Output directory for the parameters
+  @param log: log file
+  @param out_directory: Output directory
+  @param out_params: Output letter - model identifier
+  @param out_let: Output directory for the parameters
   @return: the trained neural networks (2)
   """
   global log_fn
