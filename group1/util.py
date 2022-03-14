@@ -147,6 +147,7 @@ def get_fn(string):
 
 def line_count(fn):
   try:
+    ans = 0
     ans = subprocess.check_output(['wc', '-l', fn.strip()])
     ans = int(ans.split()[0])
   except OSError as err:
