@@ -141,7 +141,7 @@ def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
   mh_vector = np.array(mh_len)
   for dl in nonfull_dls:          # for each deletion length 1- 60 unaccounted for by MH-NN predictions
     mhless_score = model.nn_match_score_function(nn2_params, np.array(dl))  # nn2_params are the trained MH-less NN parameters
-    mhless_score = np.exp(mhless_score - 0.25*dl) # get its the MH-less phi
+    mhless_score = np.exp(mhless_score - 0.25*dl)  # get its the MH-less phi
 
     unfq.append(mhless_score)                     # unnormalised scores for MH-based deletion genotypes
                                                   #     + unnormalised scores for each unacccounted for MH-less based genotype

@@ -16,9 +16,9 @@ def hist(predictions, save_file=''):
   fix.suptitle('Predicted frequency among major editing products using mESC-trained inDelphi (%)', wrap=True)
   fig_3f_data_del = np.asarray(predictions['Highest Del Rate'])
 
-  # N, bins, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
-  data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
-  count, bins, patches = ax1.hist(data, 100, orientation='horizontal')
+  count, bins, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  #data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
+  #count, bins, patches = ax1.hist(data, 100, orientation='horizontal')
   ax1.spines['left'].set_visible(False)
   ax1.spines['top'].set_visible(False)
 
@@ -36,9 +36,9 @@ def hist(predictions, save_file=''):
   ax1.set_xlabel('Number of Cas9 gRNAs from libB')
 
   fig_3f_data_ins = np.asarray(predictions['Highest Ins Rate'])
-  # ax2.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
-  data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
-  count, bins, patches = ax2.hist(data, 100, orientation='horizontal')
+  count, bins, patches = ax2.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
+  #data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
+  # count, bins, patches = ax2.hist(data, 100, orientation='horizontal')
   ax2.spines['right'].set_visible(False)
   ax2.spines['top'].set_visible(False)
 

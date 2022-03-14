@@ -72,10 +72,10 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     ##
     # MH-based deletion frequencies
     ##
-    mh_scores = nn_match_score_function(nn_params, inp[idx])
+    mh_scores = nn_match_score_function(nn_params, inp[idx]) # (delta, length)      mh score
     Js = np.array(del_lens[idx])
     unnormalized_fq = np.exp(mh_scores - 0.25*Js)
-    mh_phi_total = np.sum(unnormalized_fq)
+    mh_phi_total = np.sum(unnormalized_fq)                    # (delta, length)      phi mh score
     
     # Add MH-less contribution at full MH deletion lengths
     mh_vector = inp[idx].T[0]
@@ -92,7 +92,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
 
     # Pearson correlation squared loss
     x_mean = np.mean(normalized_fq)
-    y_mean = np.mean(obs[idx])
+    y_mean = np.mean(obs[idx])      # (delta, del length)
     pearson_numerator = np.sum((normalized_fq - x_mean)*(obs[idx] - y_mean))
     pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean)**2))
     pearson_denom_y = np.sqrt(np.sum((obs[idx] - y_mean)**2))
