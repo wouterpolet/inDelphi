@@ -57,11 +57,11 @@ def parse_data(merged):
     del_lens.append(mh_exp_data['Size'].astype('int32'))
 
     curr_dl_freqs = []
-    # all_dels = deletions[deletions['Sample_Name'] == exp][['countEvents', 'Size']]
-    # total_count = sum(all_dels['countEvents'])
-    # all_dels['countEvents'] = all_dels['countEvents'].div(total_count)
-    # dl_freq_df = all_dels[all_dels['Size'] <= 28]
-    dl_freq_df = mh_exp_data[mh_exp_data['Size'] <= 28]
+    all_dels = deletions[deletions['Sample_Name'] == exp][['countEvents', 'Size']]
+    total_count = sum(all_dels['countEvents'])
+    all_dels['countEvents'] = all_dels['countEvents'].div(total_count)
+    dl_freq_df = all_dels[all_dels['Size'] <= 28]
+    # dl_freq_df = mh_exp_data[mh_exp_data['Size'] <= 28]
     for del_len in range(1, 28 + 1):
       dl_freq = sum(dl_freq_df[dl_freq_df['Size'] == del_len]['countEvents'])
       curr_dl_freqs.append(dl_freq)
