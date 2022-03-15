@@ -187,7 +187,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
   param_scale = 0.1
   # num_epochs = 7*200 + 1
   global num_epochs
-  num_epochs = 50
+  num_epochs = 51
 
   step_size = 0.10
   init_nn_params = helper.init_random_params(param_scale, nn_layer_sizes, rs=seed)
@@ -208,7 +208,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
   both_objective_grad = grad(objective, argnum=[0, 1])
 
   def print_perf(nn_params, nn2_params, iter):
-    helper.print_and_log(str(iter), log_fn)
+    # helper.print_and_log(str(iter), log_fn)
     if iter % 5 != 0:
       return None
 
@@ -218,14 +218,14 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
     tr1_rsq, tr2_rsq = helper.rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
     te1_rsq, te2_rsq = helper.rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test, len(INP_test), seed)
 
-    out_line = ' %s  | %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t| %.3f\t|' % (
+    out_line = ' %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (
       iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
     helper.print_and_log(out_line, log_fn)
 
     if iter % 10 == 0:
       letters = helper.alphabetize(int(iter / 10))
-      helper.print_and_log(" Iter | Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2", log_fn)
-      helper.print_and_log('%s %s %s' % (datetime.datetime.now(), exec_id, letters), log_fn)
+      # helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
+      helper.print_and_log('...Saving parameters... | Timestamp: %s | Execution ID: %s | Parameter ID: %s' % (datetime.datetime.now(), exec_id, letters), log_fn)
       helper.save_parameters(nn_params, nn2_params, out_dir_params, letters)
       if iter >= 10:
         pass
@@ -308,4 +308,5 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   helper.save_train_test_names(NAMES_train, NAMES_test, out_dir)
+  helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   return train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
