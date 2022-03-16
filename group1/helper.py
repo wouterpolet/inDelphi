@@ -1,6 +1,7 @@
 # Their functionality re-used
 import os
 import pickle
+import datetime
 import autograd.numpy as np
 import autograd.numpy.random as npr
 from past.builtins import xrange
@@ -70,9 +71,10 @@ def count_num_folders(out_dir):
 
 
 def print_and_log(text, log_fn):
+  parsed_text = datetime.datetime.now().strftime("%H:%M:%S") + ' - ' + text
   with open(log_fn, 'a') as f:
-    f.write(text + '\n')
-  print(text)
+    f.write(parsed_text + '\n')
+  print(parsed_text)
   return
 
 

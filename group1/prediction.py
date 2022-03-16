@@ -73,7 +73,7 @@ def featurize(seq, cutsite, del_len_limit=DELETION_LEN_LIMIT):
 
 
 # TODO fix / optimize
-def predict_all(seq, cutsite, rate_model, bp_model, normalizer):
+def predict_all(seq, cutsite):
   # Predict 1 bp insertions and all deletions (MH and MH-less)
   # Most complete "version" of inDelphi
   # Requires rate_model (k-NN) to predict 1 bp insertion rate compared to deletion rate
@@ -218,7 +218,6 @@ def predict_sequence_outcome(gene_data):
   for seq, chromosome, location, orientation in gene_data:
     d = defaultdict(list)
     r = np.random.random()
-
     if r > (1 / 350):
       continue  # randomly decide if will predict on the found cutsite or not. 5% of time will
 
@@ -402,7 +401,7 @@ def bulk_predict(seq, d):
   # d['Unique ID'].append(unique_id)
 
   # Make predictions for each SpCas9 gRNA targeting exons and introns
-  ans = predict_all(seq, local_cutsite, rate_model, bp_model, normalizer)  # trained k-nn, bp summary dict, normalizer
+  ans = predict_all(seq, local_cutsite)  # trained k-nn, bp summary dict, normalizer
   pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans  #
   # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
   # pred_del_df = df of predicted unique del products             for sequence context and cutsite
@@ -424,8 +423,7 @@ def bulk_predict(seq, d):
   # pred_all_df.to_csv(all_df_out_fn)
 
   ## Translate predictions to indel length frequencies
-  indel_len_pred, fs = get_indel_len_pred(pred_all_df,
-                                          60)  # normalised frequency distributon on indel lengths TODO: extract
+  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60)  # normalised frequency distributon on indel lengths TODO: extract
   # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
   #   and normalised frequency distribution of frameshifts
   #   fs = {'+0': [..], '+1': [..], '+2': [..]}
@@ -505,13 +503,28 @@ def bulk_predict(seq, d):
   return (seq, indel_len_pred, s)
 
 
-def bulk_predict_all(lib_df):
+def bulk_predict_all(lib_df, nn, nn2, rate_m, bp_m, norm):
   res = []
   size = len(lib_df)
+  prob = 1 - (1000000 / size)
+
+  global nn_params
+  nn_params = nn
+  global nn2_params
+  nn2_params = nn2
+  global rate_model
+  rate_model = rate_m
+  global bp_model
+  bp_model = bp_m
+  global normalizer
+  normalizer = norm
+
   for i, seq in lib_df['target'].iteritems():
-    if i % 100 == 0:
+    if i % 1000000 == 0:
       print(f'Predicted {i} out of {size} sequences')
-    res.append(bulk_predict(seq, {}))
+    r = np.random.random()
+    if r > (prob): # Get only 1 million
+      res.append(bulk_predict(seq, {}))
   return res
 
 

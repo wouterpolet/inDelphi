@@ -26,18 +26,21 @@ FOLDER_STAT_KEY = 'statistics/'
 FOLDER_MODEL_KEY = 'model/'
 
 
-def initialize_files_and_folders(new_model):
+def initialize_files_and_folders(user_exec_id):
   # Set output location of model & params
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
   util.ensure_dir_exists(out_place)
 
   # num_folds = helper.count_num_folders(out_place)
-  if new_model or helper.count_num_folders(out_place) < 1:
+  if user_exec_id == '' or helper.count_num_folders(out_place) < 1:
     exec_id = datetime.datetime.now().strftime("%Y%m%d_%H%M")
   else:
     latest = datetime.datetime.strptime('1990/01/01', '%Y/%m/%d')
     for name in os.listdir(out_place):
       date_time_obj = datetime.datetime.strptime(name, "%Y%m%d_%H%M")
+      if name == user_exec_id:
+        latest = date_time_obj
+        break
       if latest < date_time_obj:
         latest = date_time_obj
     exec_id = latest.strftime("%Y%m%d_%H%M")
@@ -195,9 +198,11 @@ def find_cutsites_and_predict(inp_fn, use_file=''):
 
 
 def load_genes_cutsites(inp_fn):
-  pkl_file = os.path.dirname(inp_fn) + '\cutsites.pkl'
+  pkl_file = os.path.dirname(inp_fn) + '/cutsites.pkl'
   if os.path.exists(pkl_file):
-    return _pickle_load(pkl_file)
+    cutsites = _pickle_load(pkl_file)
+    cutsites = cutsites.rename(columns={'Cutsite': 'target'})
+    return cutsites
 
   all_lines = open(inp_fn, "r").readlines()
   sequence, chrom = '', ''
@@ -220,7 +225,7 @@ def load_genes_cutsites(inp_fn):
 
   print('Storing to file')
   all_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome', 'Location', 'Orientation'])
-  with open(inp_fn + 'cutsites.pkl', 'wb') as f:
+  with open(pkl_file, 'wb') as f:
     pickle.dump(all_data, f)
   print('Gene cutsite complete')
   return cutsites
@@ -254,11 +259,12 @@ def load_lib_data(folder_dir, libX):
 
 
 def get_args(args):
-  # TODO clean up and make more readable/ useable
-  if args.train_models:
-    train_models = args.train_models == 'True'
-  else:
+  if args.model_folder:
+    exec_id = args.model_folder
     train_models = False
+  else:
+    exec_id = ''
+    train_models = True
 
   if args.only_fig:
     only_plots = args.only_fig == 'True'
@@ -272,25 +278,25 @@ def get_args(args):
     prediction_file = ''
     libX = 'libB'
 
-    return train_models, only_plots, prediction_file, libX
+    return train_models, exec_id, only_plots, prediction_file, libX
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
-  parser.add_argument('--train_models', dest='train_models', type=str,
-                      help='Boolean variable indicating if neural network and knn should be trained')
+  parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
   parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
   parser.add_argument('--plot_fig_only', dest='only_fig', type=str, help='TODO fill here')
 
   args = parser.parse_args()
-  train_models, only_plots, prediction_file, libX = get_args(args)
+  train_models, user_exec_id, only_plots, prediction_file, libX = get_args(args)
 
   execution_path = os.path.dirname(os.path.dirname(__file__))
   input_dir = execution_path + '/in/'
   libX_dir = execution_path + '/data-libprocessing/'
-  out_dir, log_fn, exec_id = initialize_files_and_folders(train_models)
   if prediction_file == '':
     prediction_file = libX_dir
+
+  out_dir, log_fn, exec_id = initialize_files_and_folders(user_exec_id)
 
   helper.print_and_log("Loading data...", log_fn)
 
@@ -326,28 +332,32 @@ if __name__ == '__main__':
   # inp_fn = input_dir + 'Homo_sapiens.GRCh38.dna.chromosome.1.fa'
   # inp_fn = input_dir + 'chromosome/'
   # find_cutsites_and_predict(inp_fn, use_file='')
-
+  helper.print_and_log("Loading Gene Cutsites...", log_fn)
   inp_fn = input_dir + 'genes/mart_export.txt'
   gene_data = load_genes_cutsites(inp_fn)
-  predictions = pred.predict_sequence_outcome(gene_data)
-  # inp_fn = input_dir + 'chromosome/'
+  helper.print_and_log("Predicting Sequence Outcomes from cutsites...", log_fn)
+  predictions = pred.bulk_predict_all(gene_data, nn_params, nn2_params, rate_model, bp_model, normalizer)
+  helper.print_and_log("Storing Predictions...", log_fn)
 
-  # Using liBX data
-  output_predictions_file = (out_dir + FOLDER_STAT_KEY + 'prediction_output_' + libX + '.csv')
-  output_extended_predictions_file = f'{out_dir + FOLDER_STAT_KEY}extended_prediction_output{libX}.pkl'
-  if not only_plots:
-    print('Prediction')
-    lib_df = load_lib_data(libX_dir, libX)
-    # predictions = predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
-    # predictions.to_csv(output_predictions_file)
-    print('Complete Predictions')
-    print('More predictions, per sequence, for extended figure')
-    extended_preds = pred.bulk_predict_all(lib_df)
-    with open(output_extended_predictions_file, 'wb') as out_file:
-      pickle.dump(extended_preds, out_file)
-    print('More predictions done!')
-  else:
-    predictions = pd.read_csv(output_predictions_file)
+  output_extended_predictions_file = f'{out_dir + FOLDER_STAT_KEY}extended_prediction_output_{exec_id}.pkl'
+  with open(output_extended_predictions_file, 'wb') as out_file:
+    pickle.dump(predictions, out_file)
+
+  #
+  # # Using liBX data
+  # if not only_plots:
+  #   print('Prediction')
+  #   lib_df = load_lib_data(libX_dir, libX)
+  #   # predictions = predict_all_items(lib_df, out_dir_exin, nn_params, nn2_params, rate_model, bp_model, normalizer)
+  #   # predictions.to_csv(output_predictions_file)
+  #   print('Complete Predictions')
+  #   print('More predictions, per sequence, for extended figure')
+  #   extended_preds = pred.bulk_predict_all(lib_df, rate_model, bp_model, normalizer)
+  #   with open(output_extended_predictions_file, 'wb') as out_file:
+  #     pickle.dump(extended_preds, out_file)
+  #   print('More predictions done!')
+  # else:
+  #   predictions = pd.read_csv(output_predictions_file)
 
   print('Plotting Graphs - 3f')
   # fig_3f_data_del = predictions['Highest Del Rate'].apply(lambda x: x*100)
@@ -360,3 +370,4 @@ if __name__ == '__main__':
   print('Plotting Graphs')
 
 # Run bulk prediction once out of 300 times
+# mart_export.txtcutsites.pkl
