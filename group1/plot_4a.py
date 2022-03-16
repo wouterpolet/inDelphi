@@ -4,10 +4,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
-def box_voilin(data, save_file=''):
-  # print(df)
-  ax = sns.violinplot(data=data, x='group', y='value', color="#af52f4", inner=None, linewidth=0, saturation=0.5)
-  sns.boxplot(data=data,
+def box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS, save_file=''):
+  corr_df = pd.DataFrame({"mESC": corr_gentyp_mESC, "U2OS": corr_gentyp_U2OS})
+  df = corr_df.melt(value_vars=['mESC', 'U2OS'], var_name='group')
+
+  ax = sns.violinplot(data=df, x='group', y='value', color="#af52f4", inner=None, linewidth=0, saturation=0.5)
+  sns.boxplot(data=df,
               x='group', y='value',
               saturation=0.5, width=0.4,
               palette='rocket', boxprops={'zorder': 2}, ax=ax)
@@ -22,8 +24,5 @@ if __name__ == '__main__':
   corr_gentyp_U2OS = np.array([70, 80, 73, 65, 79])
 
   # Preparing dataframe
-  corr_df = pd.DataFrame({"mESC": corr_gentyp_mESC, "U2OS": corr_gentyp_U2OS})
-  df = corr_df.melt(value_vars=['mESC', 'U2OS'], var_name='group')
-
-  box_voilin(df)
+  box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS)
 

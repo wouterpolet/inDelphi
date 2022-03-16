@@ -1,5 +1,6 @@
 import helper, datetime
 import pandas as pd
+import util
 
 from autograd import grad
 from autograd.misc import flatten
@@ -287,6 +288,7 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   out_dir = out_directory
   global out_dir_params
   out_dir_params = out_dir + 'parameters/'
+  util.ensure_dir_exists(out_dir_params)
 
   seed, nn_layer_sizes, nn2_layer_sizes = initialize_model()
   [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(merged)

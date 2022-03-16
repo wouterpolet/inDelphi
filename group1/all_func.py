@@ -7,7 +7,6 @@ import plot_4a as plt_4
 import autograd.numpy as np
 import pandas as pd
 from pandas.core.common import SettingWithCopyWarning
-from scipy.stats import entropy
 
 import helper
 import util as util
@@ -21,11 +20,12 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
 
 
-DELETION_LEN_LIMIT = 28
 FOLDER_PARAM_KEY = 'parameters/'
 FOLDER_STAT_KEY = 'statistics/'
 FOLDER_MODEL_KEY = 'model/'
 FOLDER_GRAPH_KEY = 'plots/'
+FOLDER_INPUT_KEY = '/in/'
+EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 
 
 def initialize_files_and_folders(user_exec_id):
@@ -65,17 +65,12 @@ def initialize_files_and_folders(user_exec_id):
   return out_dir, log_fn, exec_id
 
 
-def _pickle_load(file):
-  data = pickle.load(open(file, 'rb'))
-  return data
-
-
-def load_model(file):
-  return _pickle_load(file)
+def load_pickle(file):
+  return pickle.load(open(file, 'rb'))
 
 
 def read_data(file):
-  master_data = _pickle_load(file)
+  master_data = load_pickle(file)
   return master_data['counts'], master_data['del_features']
 
 
@@ -202,7 +197,7 @@ def find_cutsites_and_predict(inp_fn, use_file=''):
 def load_genes_cutsites(inp_fn):
   pkl_file = os.path.dirname(inp_fn) + '/cutsites.pkl'
   if os.path.exists(pkl_file):
-    cutsites = _pickle_load(pkl_file)
+    cutsites = load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
     return cutsites
 
@@ -234,17 +229,17 @@ def load_genes_cutsites(inp_fn):
 
 
 def load_ins_models(out_dir_model):
-  return load_model(out_dir_model + 'rate_model.pkl'), load_model(out_dir_model + 'bp_model.pkl'), load_model(out_dir_model + 'Normalizer.pkl')
+  return load_pickle(out_dir_model + 'rate_model.pkl'), load_pickle(out_dir_model + 'bp_model.pkl'), load_pickle(out_dir_model + 'Normalizer.pkl')
 
 
 def load_neural_networks(out_dir_params):
   files = os.listdir(out_dir_params)
   nn_names = files[len(files) - 3:len(files) - 1]
-  return load_model(out_dir_params + nn_names[0]), load_model(out_dir_params + nn_names[1])
+  return load_pickle(out_dir_params + nn_names[0]), load_pickle(out_dir_params + nn_names[1])
 
 
 def load_predictions(pred_file):
-  return load_model(pred_file)
+  return load_pickle(pred_file)
 
 
 def load_lib_data(folder_dir, libX):
@@ -278,72 +273,157 @@ def get_args(args):
   return train_models, exec_id, prediction_file
 
 
+def model_creation(data, model_type):
+  '''
+  Neural Network (MH)
+  Model Creation, Training & Optimization
+  '''
+  out_folder = out_dir + model_type
+  helper.print_and_log("Training Neural Networks...", log_fn)
+  nn_params, nn2_params = nn.create_neural_networks(data, log_fn, out_folder, exec_id)
+  '''
+  KNN - 1 bp insertions
+  Model Creation, Training & Optimization
+  '''
+  helper.print_and_log("Training KNN...", log_fn)
+  total_values = load_pickle(out_folder + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
+  rate_model, bp_model, normalizer = knn.train_knn(data, total_values, out_folder + FOLDER_MODEL_KEY, out_folder + FOLDER_STAT_KEY)
+  return nn_params, nn2_params, rate_model, bp_model, normalizer
+
+
+def load_models(out_dir):
+  files = os.listdir(out_dir)
+  nn_names = files[len(files) - 3:len(files) - 1]
+  return load_pickle(out_dir + nn_names[0]), load_pickle(out_dir + nn_names[1]), load_pickle(out_dir_model + 'rate_model.pkl'), load_pickle(out_dir_model + 'bp_model.pkl'), load_pickle(out_dir_model + 'Normalizer.pkl')
+
+
+def calculate_predictions(data, models, in_del):
+  # Getting the cutsites for human gene (approx 226,000,000)
+  if in_del:
+    helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
+    predictions = pred.predict_data_outcomes(data, models, in_del)
+    predictions_file = f'{out_dir + FOLDER_GRAPH_KEY}in_del_distribution_mesc.pkl'
+    if os.path.exists(predictions_file):
+      predictions_file = f'{out_dir + FOLDER_GRAPH_KEY}in_del_distribution_u2os.pkl'
+  else:
+    helper.print_and_log("Loading Gene Cutsites...", log_fn)
+    gene_data = load_genes_cutsites(data)
+    # Calculating outcome using our models - only calculate approx 1,000,000
+    helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
+    predictions = pred.predict_data_outcomes(gene_data, models, in_del)
+    predictions_file = f'{out_dir + FOLDER_GRAPH_KEY}freq_distribution.pkl'
+
+  helper.print_and_log("Storing Predictions...", log_fn)
+  with open(predictions_file, 'wb') as out_file:
+    pickle.dump(predictions, out_file)
+
+  return predictions
+
+
+def get_observed_values(data):
+  grouped = data.groupby('Sample_Name')['Size'].apply(list).to_dict()
+  grouped_res = {}
+  # create deletion dicts
+  for k, v in grouped.items():
+    res = {}
+    for i in range(1, 31):
+      res[-i] = v.count(i)
+    grouped_res[k] = res
+
+  # add insertions
+  for k, v in grouped_res.items():
+    v[1] = len(data[(data['Sample_Name'] == k) & (data['Type'] == 'INSERTION') & (
+      data['Indel'].str.startswith('1+'))])
+    total = sum(v.values())
+    for length, count in v.items():
+      v[length] = count / total
+
+  return grouped_res
+
+
 if __name__ == '__main__':
+  # Execution Parameters
   parser = argparse.ArgumentParser(description='Execution Details')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
   parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
-  # parser.add_argument('--plot_fig_only', dest='only_fig', type=str, help='TODO fill here')
-
   args = parser.parse_args()
   train_models, user_exec_id, prediction_file = get_args(args)
 
-  execution_path = os.path.dirname(os.path.dirname(__file__))
-  input_dir = execution_path + '/in/'
-  libX_dir = execution_path + '/data-libprocessing/'
+  # Program Local Directories
+  out_directory, log_file, execution_id = initialize_files_and_folders(user_exec_id)
+  global log_fn
+  log_fn = log_file
+  global out_dir
+  out_dir = out_directory
+  global exec_id
+  exec_id = execution_id
+
+  input_dir = EXECUTION_PATH + FOLDER_INPUT_KEY
+  out_nn_param_dir = out_dir + FOLDER_PARAM_KEY
+  out_model_dir = out_dir + FOLDER_MODEL_KEY
+  out_stat_dir = out_dir + FOLDER_STAT_KEY
+  out_plot_dir = out_dir + FOLDER_GRAPH_KEY
+
+  # Only training / loading the models if no prediction file is found
   if prediction_file == '':
-    prediction_file = libX_dir
+    # Load LibA data for training
+    helper.print_and_log("Loading data...", log_fn)
+    all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+    helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
+    all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1).reset_index()
+    helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
 
-  out_dir, log_fn, exec_id = initialize_files_and_folders(user_exec_id)
+    # Reshuffling the data
+    reorder_mesc = all_data_mesc.sample(frac=1)
+    reorder_u2os = all_data_u2os.sample(frac=1)
 
-  helper.print_and_log("Loading data...", log_fn)
+    # Splitting into train test so that test can be used for predictions
+    test_mesc = reorder_mesc.iloc[:189]
+    train_mesc = reorder_mesc.iloc[189:]
+    test_u2os = reorder_u2os.iloc[:185]
+    train_u2os = reorder_u2os.iloc[185:]
 
-  counts, del_features = read_data(input_dir + 'dataset.pkl')
-  # counts, del_features = read_data(input_dir + 'U2OS.pkl')
-  all_data = pd.concat([counts, del_features], axis=1)
-  all_data = all_data.reset_index()
-  helper.print_and_log(f"Data Loaded - Items in Dataframe: {len(all_data)}", log_fn)
-
-  if prediction_file == '':
-    # Only training / loading the models if no prediction file is found
     if train_models:
-      '''
-      Neural Network (MH)
-      Model Creation, Training & Optimization
-      '''
-      helper.print_and_log("Training Neural Networks...", log_fn)
-      nn_params, nn2_params = nn.create_neural_networks(all_data, log_fn, out_dir, exec_id)
-      '''
-      KNN - 1 bp insertions
-      Model Creation, Training & Optimization
-      '''
-      helper.print_and_log("Training KNN...", log_fn)
-      total_values = load_model(out_dir + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
-      rate_model, bp_model, normalizer = knn.train_knn(all_data, total_values, out_dir + FOLDER_MODEL_KEY,
-                                                       out_dir + FOLDER_STAT_KEY)
+      # Models for Figure 3
+      models_3 = model_creation(all_data_mesc, 'fig_3/')
+      # Models for Figure 4
+      models_4a = model_creation(train_mesc, 'fig_4mesc/')
+      models_4b = model_creation(train_u2os, 'fig_4u20s/')
     else:
+      # TODO: loading must be changes
       helper.print_and_log("Loading Neural Networks...", log_fn)
-      nn_params, nn2_params = load_neural_networks(out_dir + FOLDER_PARAM_KEY)
+      # models_3 = model_creation(all_data_mesc)
+      # models_4a = model_creation(all_data_mesc)
+      # models_4b = model_creation(all_data_u2os)
+      nn_params, nn2_params = load_neural_networks(out_nn_param_dir)
       helper.print_and_log("Loading KNN...", log_fn)
-      rate_model, bp_model, normalizer = load_ins_models(out_dir + FOLDER_MODEL_KEY)
+      rate_model, bp_model, normalizer = load_ins_models(out_model_dir)
 
-    # Getting the cutsites for human gene (approx 226,000,000)
-    helper.print_and_log("Loading Gene Cutsites...", log_fn)
-    inp_fn = input_dir + 'genes/mart_export.txt'
-    gene_data = load_genes_cutsites(inp_fn)
-    helper.print_and_log("Predicting Sequence Outcomes from cutsites...", log_fn)
-    # Calculating outcome using our models - only calculate approx 1,000,000
-    predictions = pred.bulk_predict_all(gene_data, nn_params, nn2_params, rate_model, bp_model, normalizer)
-    helper.print_and_log("Storing Predictions...", log_fn)
-    output_extended_predictions_file = f'{out_dir + FOLDER_STAT_KEY}extended_prediction_output_{exec_id}.pkl'
-    with open(output_extended_predictions_file, 'wb') as out_file:
-      pickle.dump(predictions, out_file)
+    fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, True)
+    fig4a_predictions = calculate_predictions(test_mesc, models_4a, False)
+    fig4b_predictions = calculate_predictions(test_u2os, models_4b, False)
+    # Get Observed Values
+    fig4a_observations = get_observed_values(test_mesc)
+    fig4b_observations = get_observed_values(test_u2os)
+
+    pearson_mESC = pred.get_pearson_pred_obs(fig4a_predictions, fig4a_observations)
+    pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
+
   else:
     helper.print_and_log("Loading Predictions...", log_fn)
-    predictions = load_predictions(out_dir + FOLDER_STAT_KEY + prediction_file)
+    fig3_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'freq_distribution.pkl')
+    fig4a_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'in_del_distribution_mesc.pkl')
+    fig4b_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'in_del_distribution_u2os.pkl')
+
+
   print('Plotting Graphs - 3f')
-  plt_3.hist(predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id)
+  plt_3.hist(fig3_predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id)
   print('Plotting Graphs - 4a')
-  plt_4.box_voilin(predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+  plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+
+  # libX_dir = EXECUTION_PATH + '/data-libprocessing/'
+  # if prediction_file == '':
+  #   prediction_file = libX_dir
 
 
   #

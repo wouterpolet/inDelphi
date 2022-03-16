@@ -215,12 +215,8 @@ def predict_all(seq, cutsite):
 
 
 def predict_sequence_outcome(gene_data):
+  d = defaultdict(list)
   for seq, chromosome, location, orientation in gene_data:
-    d = defaultdict(list)
-    r = np.random.random()
-    if r > (1 / 350):
-      continue  # randomly decide if will predict on the found cutsite or not. 5% of time will
-
     local_cutsite = 30
     grna = seq[13:33]
     # cutsite_coord = start + idx
@@ -336,6 +332,7 @@ def predict_sequence_outcome(gene_data):
     highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for most freq MH-based del genotype
     d['Highest Ins Rate'].append(highest_ins_rate)
     d['Highest Del Rate'].append(highest_del_rate)
+  return d
 
 
 def bulk_predict(seq, d):
@@ -503,21 +500,10 @@ def bulk_predict(seq, d):
   return (seq, indel_len_pred, s)
 
 
-def bulk_predict_all(lib_df, nn, nn2, rate_m, bp_m, norm):
+def bulk_predict_all(lib_df):
   res = []
   size = len(lib_df)
   prob = 1 - (1000000 / size)
-
-  global nn_params
-  nn_params = nn
-  global nn2_params
-  nn2_params = nn2
-  global rate_model
-  rate_model = rate_m
-  global bp_model
-  bp_model = bp_m
-  global normalizer
-  normalizer = norm
 
   for i, seq in lib_df['target'].iteritems():
     if i % 1000000 == 0:
@@ -527,6 +513,16 @@ def bulk_predict_all(lib_df, nn, nn2, rate_m, bp_m, norm):
       res.append(bulk_predict(seq, {}))
   return res
 
+
+def get_pearson_pred_obs(prediction, observation):
+  x_mean = np.mean(normalized_fq)
+  y_mean = np.mean(obs[idx])
+  pearson_numerator = np.sum((normalized_fq - x_mean) * (obs[idx] - y_mean))
+  pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
+  pearson_denom_y = np.sqrt(np.sum((obs[idx] - y_mean) ** 2))
+  pearson_denom = pearson_denom_x * pearson_denom_y
+  rsq = (pearson_numerator / pearson_denom) ** 2
+  return
 
 
 # TODO optimize
@@ -643,6 +639,27 @@ def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, b
   return pd.DataFrame(d)
 
   # maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force=True)
+
+
+def predict_data_outcomes(lib_df, models, in_del):
+  global nn_params
+  nn_params = models[0]
+  global nn2_params
+  nn2_params = models[1]
+  global rate_model
+  rate_model = models[2]
+  global bp_model
+  bp_model = models[3]
+  global normalizer
+  normalizer = models[4]
+
+  if in_del:
+    return bulk_predict_all(lib_df)
+  else:
+    # Only selecting a smaller number of samples to predict rather than all cutsites
+    # subset = lib_df.sample(n=1003524)
+    subset = lib_df.sample(n=50)
+    return predict_sequence_outcome(subset)
 
 
 
