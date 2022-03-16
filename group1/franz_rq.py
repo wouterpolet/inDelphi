@@ -1,3 +1,4 @@
+import math
 import os
 import pickle
 import pandas as pd
@@ -41,6 +42,21 @@ counts, del_features = read_data(input_dir + 'dataset.pkl')
 # counts, del_features = read_data(input_dir + 'U2OS.pkl')
 merged_data = pd.concat([counts, del_features], axis=1)
 merged_data = merged_data.reset_index()
+
+grouped = merged_data.groupby('Sample_Name')['Size'].apply(list).to_dict()
+grouped_res = {}
+# create deletion dicts
+for k, v in grouped.items():
+  res = {}
+  for i in range(1, 31):
+    res[-i] = v.count(i)
+  grouped_res[k] = res
+# add insertions
+for k, v in grouped_res.items():
+  v[1] = len(merged_data[(merged_data['Sample_Name'] == k) & (merged_data['Type'] == 'INSERTION') & (merged_data['Indel'].str.startswith('1+'))])
+  total = sum(v.values())
+  for length, count in v.items():
+    v[length] = count / total
 
 deletions = merged_data[merged_data['Type'] == 'DELETION']
 insertions = merged_data[merged_data['Type'] == 'INSERTION']

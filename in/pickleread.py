@@ -12,4 +12,5 @@ def read_pickle_file(filename):
 if __name__ == '__main__':
     counts1, del_features1 = read_pickle_file('../in/dataset.pkl')
     counts, del_features = read_pickle_file('../in/U2OS.pkl')
+    some_res = pkl.load(open('../in/extended_prediction_outputlibB.pkl', 'rb'))
     print('testing')
