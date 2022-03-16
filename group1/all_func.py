@@ -1,7 +1,8 @@
 import argparse, datetime, os, pickle, warnings, re
 from collections import defaultdict
 import glob
-import plot_3f as plt
+import plot_3f as plt_3
+import plot_4a as plt_4
 
 import autograd.numpy as np
 import pandas as pd
@@ -24,6 +25,7 @@ DELETION_LEN_LIMIT = 28
 FOLDER_PARAM_KEY = 'parameters/'
 FOLDER_STAT_KEY = 'statistics/'
 FOLDER_MODEL_KEY = 'model/'
+FOLDER_GRAPH_KEY = 'plots/'
 
 
 def initialize_files_and_folders(user_exec_id):
@@ -339,7 +341,10 @@ if __name__ == '__main__':
     helper.print_and_log("Loading Predictions...", log_fn)
     predictions = load_predictions(out_dir + FOLDER_STAT_KEY + prediction_file)
   print('Plotting Graphs - 3f')
-  plt.hist(predictions, out_dir + FOLDER_STAT_KEY + 'plot_3f_' + exec_id)
+  plt_3.hist(predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id)
+  print('Plotting Graphs - 4a')
+  plt_4.box_voilin(predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+
 
   #
   # # Using liBX data
