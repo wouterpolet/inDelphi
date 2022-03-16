@@ -15,13 +15,15 @@ def box_voilin(data, save_file=''):
 
 
 if __name__ == '__main__':
+  # Source
   # https://stackoverflow.com/questions/68614447/how-to-display-boxplot-in-front-of-violinplot-in-seaborn-seaborn-zorder
   # Genotype pearson correlation data
-  corr_gentyp_mESC = np.transpose(np.random.uniform(90, 100, 5))
-  corr_gentyp_U2OS = np.transpose(np.random.uniform(80, 90, 5))
-  # numpy_data = np.array([corr_gentyp_mESC, corr_gentyp_U2OS])
-  # df = pd.DataFrame(data=numpy_data, columns=['mESC', 'U2OS'])
-  df = pd.DataFrame(np.random.rand(10, 2)).melt(var_name='group')
+  corr_gentyp_mESC = np.array([99, 97, 86, 93, 85])
+  corr_gentyp_U2OS = np.array([70, 80, 73, 65, 79])
 
-  box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS)
+  # Preparing dataframe
+  corr_df = pd.DataFrame({"mESC": corr_gentyp_mESC, "U2OS": corr_gentyp_U2OS})
+  df = corr_df.melt(value_vars=['mESC', 'U2OS'], var_name='group')
+
+  box_voilin(df)
 
