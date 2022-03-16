@@ -241,6 +241,10 @@ def load_neural_networks(out_dir_params):
   return load_model(out_dir_params + nn_names[0]), load_model(out_dir_params + nn_names[1])
 
 
+def load_predictions(pred_file):
+  return load_model(pred_file)
+
+
 def load_lib_data(folder_dir, libX):
   names = []
   grna = []
@@ -259,36 +263,27 @@ def load_lib_data(folder_dir, libX):
 
 
 def get_args(args):
+  exec_id = ''
+  train_models = True
+  prediction_file = ''
   if args.model_folder:
     exec_id = args.model_folder
     train_models = False
-  else:
-    exec_id = ''
-    train_models = True
-
-  if args.only_fig:
-    only_plots = args.only_fig == 'True'
-  else:
-    only_plots = False
 
   if args.pred_file:
     prediction_file = args.pred_file
-    libX = 'libA'
-  else:
-    prediction_file = ''
-    libX = 'libB'
 
-    return train_models, exec_id, only_plots, prediction_file, libX
+  return train_models, exec_id, prediction_file
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
   parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
-  parser.add_argument('--plot_fig_only', dest='only_fig', type=str, help='TODO fill here')
+  # parser.add_argument('--plot_fig_only', dest='only_fig', type=str, help='TODO fill here')
 
   args = parser.parse_args()
-  train_models, user_exec_id, only_plots, prediction_file, libX = get_args(args)
+  train_models, user_exec_id, prediction_file = get_args(args)
 
   execution_path = os.path.dirname(os.path.dirname(__file__))
   input_dir = execution_path + '/in/'
@@ -306,42 +301,45 @@ if __name__ == '__main__':
   all_data = all_data.reset_index()
   helper.print_and_log(f"Data Loaded - Items in Dataframe: {len(all_data)}", log_fn)
 
-  '''
-  Neural Network (MH)
-  Model Creation, Training & Optimization
-  '''
-  if train_models:
-    helper.print_and_log("Training Neural Networks...", log_fn)
-    nn_params, nn2_params = nn.create_neural_networks(all_data, log_fn, out_dir, exec_id)
+  if prediction_file == '':
+    # Only training / loading the models if no prediction file is found
+    if train_models:
+      '''
+      Neural Network (MH)
+      Model Creation, Training & Optimization
+      '''
+      helper.print_and_log("Training Neural Networks...", log_fn)
+      nn_params, nn2_params = nn.create_neural_networks(all_data, log_fn, out_dir, exec_id)
+      '''
+      KNN - 1 bp insertions
+      Model Creation, Training & Optimization
+      '''
+      helper.print_and_log("Training KNN...", log_fn)
+      total_values = load_model(out_dir + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
+      rate_model, bp_model, normalizer = knn.train_knn(all_data, total_values, out_dir + FOLDER_MODEL_KEY,
+                                                       out_dir + FOLDER_STAT_KEY)
+    else:
+      helper.print_and_log("Loading Neural Networks...", log_fn)
+      nn_params, nn2_params = load_neural_networks(out_dir + FOLDER_PARAM_KEY)
+      helper.print_and_log("Loading KNN...", log_fn)
+      rate_model, bp_model, normalizer = load_ins_models(out_dir + FOLDER_MODEL_KEY)
 
-    helper.print_and_log("Training KNN...", log_fn)
-    total_values = load_model(out_dir + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
-    rate_model, bp_model, normalizer = knn.train_knn(all_data, total_values, out_dir + FOLDER_MODEL_KEY, out_dir + FOLDER_STAT_KEY)
+    # Getting the cutsites for human gene (approx 226,000,000)
+    helper.print_and_log("Loading Gene Cutsites...", log_fn)
+    inp_fn = input_dir + 'genes/mart_export.txt'
+    gene_data = load_genes_cutsites(inp_fn)
+    helper.print_and_log("Predicting Sequence Outcomes from cutsites...", log_fn)
+    # Calculating outcome using our models - only calculate approx 1,000,000
+    predictions = pred.bulk_predict_all(gene_data, nn_params, nn2_params, rate_model, bp_model, normalizer)
+    helper.print_and_log("Storing Predictions...", log_fn)
+    output_extended_predictions_file = f'{out_dir + FOLDER_STAT_KEY}extended_prediction_output_{exec_id}.pkl'
+    with open(output_extended_predictions_file, 'wb') as out_file:
+      pickle.dump(predictions, out_file)
   else:
-    helper.print_and_log("Loading Neural Networks...", log_fn)
-    nn_params, nn2_params = load_neural_networks(out_dir + FOLDER_PARAM_KEY)
-    helper.print_and_log("Loading KNN...", log_fn)
-    rate_model, bp_model, normalizer = load_ins_models(out_dir + FOLDER_MODEL_KEY)
-
-  '''
-  KNN - 1 bp insertions
-  Model Creation, Training & Optimization
-  '''
-
-  # Using Chromosome Data
-  # inp_fn = input_dir + 'Homo_sapiens.GRCh38.dna.chromosome.1.fa'
-  # inp_fn = input_dir + 'chromosome/'
-  # find_cutsites_and_predict(inp_fn, use_file='')
-  helper.print_and_log("Loading Gene Cutsites...", log_fn)
-  inp_fn = input_dir + 'genes/mart_export.txt'
-  gene_data = load_genes_cutsites(inp_fn)
-  helper.print_and_log("Predicting Sequence Outcomes from cutsites...", log_fn)
-  predictions = pred.bulk_predict_all(gene_data, nn_params, nn2_params, rate_model, bp_model, normalizer)
-  helper.print_and_log("Storing Predictions...", log_fn)
-
-  output_extended_predictions_file = f'{out_dir + FOLDER_STAT_KEY}extended_prediction_output_{exec_id}.pkl'
-  with open(output_extended_predictions_file, 'wb') as out_file:
-    pickle.dump(predictions, out_file)
+    helper.print_and_log("Loading Predictions...", log_fn)
+    predictions = load_predictions(out_dir + FOLDER_STAT_KEY + prediction_file)
+  print('Plotting Graphs - 3f')
+  plt.hist(predictions, out_dir + FOLDER_STAT_KEY + 'plot_3f_' + exec_id)
 
   #
   # # Using liBX data
@@ -359,15 +357,13 @@ if __name__ == '__main__':
   # else:
   #   predictions = pd.read_csv(output_predictions_file)
 
-  print('Plotting Graphs - 3f')
   # fig_3f_data_del = predictions['Highest Del Rate'].apply(lambda x: x*100)
   # fig_3f_data_ins = predictions['Highest Ins Rate'].apply(lambda x: x*100)
   # plt.hist(fig_3f_data_del, out_dir_stat + 'del_plot_3f_' + libX)
   # plt.hist(fig_3f_data_ins, out_dir_stat + 'ins_plot_3f_' + libX)
   # Plotting Image 3f
-  # plt.hist(predictions, out_dir_stat + 'plot_3f_' + libX)
 
-  print('Plotting Graphs')
+
 
 # Run bulk prediction once out of 300 times
 # mart_export.txtcutsites.pkl

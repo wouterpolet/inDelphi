@@ -80,7 +80,6 @@ def box(predictions, save_file=''):
   plt.close()
 
 if __name__ == '__main__':
-  # franz_path = "G:/My Drive/3) Work/Study/TU_Delft_MSc_Nanobiology/3-courses/Machine-Learning-in-Bioinformatics/inDelphi/shared/inDelphi/out/aaa/statistics/prediction_output.csv"
-  # predictions = pd.read_csv(franz_path)
-  # hist(predictions)
-  box([], 'C:\\Development\\CS4260\\inDelphi\\out\\aaa\\statistics\\test.pdf')
+  franz_path = "G:/My Drive/3) Work/Study/TU_Delft_MSc_Nanobiology/3-courses/Machine-Learning-in-Bioinformatics/inDelphi/shared/inDelphi/out/aaa/statistics/prediction_output.csv"
+  predictions = pd.read_csv(franz_path)
+  hist(predictions)
