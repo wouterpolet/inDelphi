@@ -216,7 +216,11 @@ def predict_all(seq, cutsite):
 
 def predict_sequence_outcome(gene_data):
   d = defaultdict(list)
+  size = len(gene_data)
   for index, row in gene_data.iterrows():
+    if index % 100000 == 0:
+      print(f'Predicted {index} out of {size} sequences')
+
     seq = row['target']
     chromosome = row['Chromosome']
     location = row['Location']
@@ -520,13 +524,14 @@ def bulk_predict_all(lib_df):
 
 
 def get_pearson_pred_obs(prediction, observation):
-  x_mean = np.mean(normalized_fq)
-  y_mean = np.mean(obs[idx])
-  pearson_numerator = np.sum((normalized_fq - x_mean) * (obs[idx] - y_mean))
-  pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
-  pearson_denom_y = np.sqrt(np.sum((obs[idx] - y_mean) ** 2))
-  pearson_denom = pearson_denom_x * pearson_denom_y
-  rsq = (pearson_numerator / pearson_denom) ** 2
+  for idx in range(observation):
+    x_mean = np.mean(normalized_fq)
+    y_mean = np.mean(observation[idx])
+    pearson_numerator = np.sum((normalized_fq - x_mean) * (observation[idx] - y_mean))
+    pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
+    pearson_denom_y = np.sqrt(np.sum((observation[idx] - y_mean) ** 2))
+    pearson_denom = pearson_denom_x * pearson_denom_y
+    rsq = (pearson_numerator / pearson_denom) ** 2
   return
 
 

@@ -370,19 +370,27 @@ def calculate_figure_4():
   all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
   helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
   all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1).reset_index()
+  # all_data_u2os.to_csv(input_dir + 'u20s_dataset.csv')
   all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
 
   helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
 
   # Reshuffling the data
-  reorder_mesc = all_data_mesc.sample(frac=1)
-  reorder_u2os = all_data_u2os.sample(frac=1)
+  unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), 189)
+  test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
+  train_mesc = pd.merge(all_data_mesc, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
+  unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), 185)
+  test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
+  train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
+
+  # reorder_mesc = all_data_mesc.sample(frac=1)
+  # reorder_u2os = all_data_u2os.sample(frac=1)
   # Splitting into train test so that test can be used for predictions
-  test_mesc = reorder_mesc.iloc[:189]
-  train_mesc = reorder_mesc.iloc[189:]
-  test_u2os = reorder_u2os.iloc[:185]
-  train_u2os = reorder_u2os.iloc[185:]
+  # test_mesc = reorder_mesc.iloc[:189]
+  # train_mesc = reorder_mesc.iloc[189:]
+  # test_u2os = reorder_u2os.iloc[:185]
+  # train_u2os = reorder_u2os.iloc[185:]
 
   # Models for Figure 4
   models_4b = model_creation(train_u2os, 'fig_4u20s/')
