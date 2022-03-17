@@ -2,7 +2,7 @@ import argparse, datetime, os, pickle, warnings, re
 from collections import defaultdict
 import glob
 import plot_3f as plt_3
-import plot_4a as plt_4
+import plot_4b as plt_4
 
 import autograd.numpy as np
 import pandas as pd
@@ -441,7 +441,7 @@ def calculate_figure_4(train_model):
   pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
 
   helper.print_and_log("Plotting Figure...", log_fn)
-  plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+  plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4b_' + exec_id)
 
   return
 
@@ -449,7 +449,7 @@ def calculate_figure_4(train_model):
 if __name__ == '__main__':
   # Execution Parameters
   parser = argparse.ArgumentParser(description='Execution Details')
-  parser.add_argument('--process', dest='exec_type', choices=['3f', '4a', 'both'], type=str, help='Which model / figure to reproduce')
+  parser.add_argument('--process', dest='exec_type', choices=['3f', '4b', 'both'], type=str, help='Which model / figure to reproduce')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
 
   parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
@@ -474,7 +474,7 @@ if __name__ == '__main__':
 
   if execution_flow == '3f':
     calculate_figure_3(train_models)
-  elif execution_flow == '4a':
+  elif execution_flow == '4b':
     calculate_figure_4(train_models)
   else:
     calculate_figure_3(train_models)
