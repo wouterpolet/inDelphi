@@ -54,7 +54,10 @@ def parse_data(all_data):
 
     # Normalize Counts
     total_count = sum(mh_exp_data['countEvents'])
+    if total_count == 0:
+      continue
     mh_exp_data['countEvents'] = mh_exp_data['countEvents'].div(total_count)
+
 
     freqs.append(mh_exp_data['countEvents'])
     mh_lens.append(mh_exp_data['homologyLength'].astype('int32'))

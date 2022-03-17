@@ -524,14 +524,18 @@ def bulk_predict_all(lib_df):
 
 
 def get_pearson_pred_obs(prediction, observation):
-  for idx in range(observation):
+  r_values = []
+  for idx, obs in range(observation):
+    # Get prediction of GRNA - TODO Change based on grna item
+    normalized_fq = prediction
+
     x_mean = np.mean(normalized_fq)
-    y_mean = np.mean(observation[idx])
+    y_mean = np.mean(observation[idx]) # TODO - check item to pick
     pearson_numerator = np.sum((normalized_fq - x_mean) * (observation[idx] - y_mean))
     pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
     pearson_denom_y = np.sqrt(np.sum((observation[idx] - y_mean) ** 2))
     pearson_denom = pearson_denom_x * pearson_denom_y
-    rsq = (pearson_numerator / pearson_denom) ** 2
+    r_values.append(pearson_numerator / pearson_denom)
   return
 
 
