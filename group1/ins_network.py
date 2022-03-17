@@ -213,7 +213,7 @@ def train_knn(all_data, total_values, out_dir, out_stat):
   out_dir_model = out_dir
   global out_dir_stat
   out_dir_stat = out_stat
-
+  util.ensure_dir_exists(out_dir_stat)
   rate_stats, bp_stats = load_statistics(all_data, total_values)
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
   X, Y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')

@@ -216,7 +216,12 @@ def predict_all(seq, cutsite):
 
 def predict_sequence_outcome(gene_data):
   d = defaultdict(list)
-  for seq, chromosome, location, orientation in gene_data:
+  for index, row in gene_data.iterrows():
+    seq = row['target']
+    chromosome = row['Chromosome']
+    location = row['Location']
+    orientation = row['Orientation']
+
     local_cutsite = 30
     grna = seq[13:33]
     # cutsite_coord = start + idx
@@ -233,7 +238,7 @@ def predict_sequence_outcome(gene_data):
     # d['Unique ID'].append(unique_id)
 
     # Make predictions for each SpCas9 gRNA targeting exons and introns
-    ans = predict_all(seq, local_cutsite, rate_model, bp_model, normalizer)  # trained k-nn, bp summary dict, normalizer
+    ans = predict_all(seq, local_cutsite)  # trained k-nn, bp summary dict, normalizer
     pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans  #
     # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
     # pred_del_df = df of predicted unique del products             for sequence context and cutsite
@@ -332,7 +337,7 @@ def predict_sequence_outcome(gene_data):
     highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for most freq MH-based del genotype
     d['Highest Ins Rate'].append(highest_ins_rate)
     d['Highest Del Rate'].append(highest_del_rate)
-  return d
+  return pd.DataFrame(d)
 
 
 def bulk_predict(seq, d):
@@ -657,8 +662,8 @@ def predict_data_outcomes(lib_df, models, in_del):
     return bulk_predict_all(lib_df)
   else:
     # Only selecting a smaller number of samples to predict rather than all cutsites
-    # subset = lib_df.sample(n=1003524)
-    subset = lib_df.sample(n=50)
+    subset = lib_df.sample(n=1003524)
+    # subset = lib_df.sample(n=50)
     return predict_sequence_outcome(subset)
 
 

@@ -56,6 +56,7 @@ def initialize_files_and_folders(user_exec_id):
   util.ensure_dir_exists(out_dir + FOLDER_PARAM_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_STAT_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_MODEL_KEY)
+  util.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
 
   log_fn = out_dir + '_log_%s.out' % exec_id
   with open(log_fn, 'w') as f:
@@ -270,7 +271,12 @@ def get_args(args):
   if args.pred_file:
     prediction_file = args.pred_file
 
-  return train_models, exec_id, prediction_file
+  if args.exec_type:
+    execution_flow = args.exec_type
+  else:
+    execution_flow = 'both'
+
+  return train_models, exec_id, prediction_file, execution_flow
 
 
 def model_creation(data, model_type):
@@ -287,14 +293,16 @@ def model_creation(data, model_type):
   '''
   helper.print_and_log("Training KNN...", log_fn)
   total_values = load_pickle(out_folder + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
-  rate_model, bp_model, normalizer = knn.train_knn(data, total_values, out_folder + FOLDER_MODEL_KEY, out_folder + FOLDER_STAT_KEY)
+  rate_model, bp_model, normalizer = knn.train_knn(data, total_values, out_folder, out_folder + FOLDER_STAT_KEY)
   return nn_params, nn2_params, rate_model, bp_model, normalizer
 
 
 def load_models(out_dir):
-  files = os.listdir(out_dir)
+  helper.print_and_log("Loading models...", log_fn)
+  nn_path = out_dir + FOLDER_PARAM_KEY
+  files = os.listdir(nn_path)
   nn_names = files[len(files) - 3:len(files) - 1]
-  return load_pickle(out_dir + nn_names[0]), load_pickle(out_dir + nn_names[1]), load_pickle(out_dir_model + 'rate_model.pkl'), load_pickle(out_dir_model + 'bp_model.pkl'), load_pickle(out_dir_model + 'Normalizer.pkl')
+  return load_pickle(nn_path + nn_names[0]), load_pickle(nn_path + nn_names[1]), load_pickle(out_dir + 'rate_model.pkl'), load_pickle(out_dir + 'bp_model.pkl'), load_pickle(out_dir + 'Normalizer.pkl')
 
 
 def calculate_predictions(data, models, in_del):
@@ -341,13 +349,72 @@ def get_observed_values(data):
   return grouped_res
 
 
+def calculate_figure_3(train_model):
+  if train_model:
+    helper.print_and_log("Loading data...", log_fn)
+    all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+    models_3 = model_creation(all_data_mesc, 'fig_3/')
+  else:
+    model_folder = out_dir + 'fig_3/'
+    models_3 = load_models(model_folder)
+
+  fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, False)
+
+  helper.print_and_log("Plotting Figure...", log_fn)
+  plt_3.hist(fig3_predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id + '.pdf')
+  return
+
+
+def calculate_figure_4():
+  helper.print_and_log("Loading data...", log_fn)
+  all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+  helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
+  all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1).reset_index()
+  all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
+
+  helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
+
+  # Reshuffling the data
+  reorder_mesc = all_data_mesc.sample(frac=1)
+  reorder_u2os = all_data_u2os.sample(frac=1)
+
+  # Splitting into train test so that test can be used for predictions
+  test_mesc = reorder_mesc.iloc[:189]
+  train_mesc = reorder_mesc.iloc[189:]
+  test_u2os = reorder_u2os.iloc[:185]
+  train_u2os = reorder_u2os.iloc[185:]
+
+  # Models for Figure 4
+  models_4b = model_creation(train_u2os, 'fig_4u20s/')
+  models_4a = model_creation(train_mesc, 'fig_4mesc/')
+
+  fig4a_predictions = calculate_predictions(test_mesc, models_4a, True)
+  fig4b_predictions = calculate_predictions(test_u2os, models_4b, True)
+
+  # Get Observed Values
+  helper.print_and_log("Calculating the Observed Values...", log_fn)
+  fig4a_observations = get_observed_values(test_mesc)
+  fig4b_observations = get_observed_values(test_u2os)
+
+  helper.print_and_log("Calculating Pearson Correlation...", log_fn)
+  pearson_mESC = pred.get_pearson_pred_obs(fig4a_predictions, fig4a_observations)
+  pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
+
+  helper.print_and_log("Plotting Figure...", log_fn)
+  plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+
+  return
+
+
 if __name__ == '__main__':
   # Execution Parameters
   parser = argparse.ArgumentParser(description='Execution Details')
+  parser.add_argument('--process', dest='exec_type', choices=['3f', '4a', 'both'], type=str, help='Which model / figure to reproduce')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
+
   parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
   args = parser.parse_args()
-  train_models, user_exec_id, prediction_file = get_args(args)
+  train_models, user_exec_id, prediction_file, execution_flow = get_args(args)
 
   # Program Local Directories
   out_directory, log_file, execution_id = initialize_files_and_folders(user_exec_id)
@@ -357,69 +424,97 @@ if __name__ == '__main__':
   out_dir = out_directory
   global exec_id
   exec_id = execution_id
-
+  global input_dir
   input_dir = EXECUTION_PATH + FOLDER_INPUT_KEY
+
   out_nn_param_dir = out_dir + FOLDER_PARAM_KEY
   out_model_dir = out_dir + FOLDER_MODEL_KEY
   out_stat_dir = out_dir + FOLDER_STAT_KEY
   out_plot_dir = out_dir + FOLDER_GRAPH_KEY
 
-  # Only training / loading the models if no prediction file is found
-  if prediction_file == '':
-    # Load LibA data for training
-    helper.print_and_log("Loading data...", log_fn)
-    all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
-    helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
-    all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1).reset_index()
-    helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
-
-    # Reshuffling the data
-    reorder_mesc = all_data_mesc.sample(frac=1)
-    reorder_u2os = all_data_u2os.sample(frac=1)
-
-    # Splitting into train test so that test can be used for predictions
-    test_mesc = reorder_mesc.iloc[:189]
-    train_mesc = reorder_mesc.iloc[189:]
-    test_u2os = reorder_u2os.iloc[:185]
-    train_u2os = reorder_u2os.iloc[185:]
-
-    if train_models:
-      # Models for Figure 3
-      models_3 = model_creation(all_data_mesc, 'fig_3/')
-      # Models for Figure 4
-      models_4a = model_creation(train_mesc, 'fig_4mesc/')
-      models_4b = model_creation(train_u2os, 'fig_4u20s/')
-    else:
-      # TODO: loading must be changes
-      helper.print_and_log("Loading Neural Networks...", log_fn)
-      # models_3 = model_creation(all_data_mesc)
-      # models_4a = model_creation(all_data_mesc)
-      # models_4b = model_creation(all_data_u2os)
-      nn_params, nn2_params = load_neural_networks(out_nn_param_dir)
-      helper.print_and_log("Loading KNN...", log_fn)
-      rate_model, bp_model, normalizer = load_ins_models(out_model_dir)
-
-    fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, True)
-    fig4a_predictions = calculate_predictions(test_mesc, models_4a, False)
-    fig4b_predictions = calculate_predictions(test_u2os, models_4b, False)
-    # Get Observed Values
-    fig4a_observations = get_observed_values(test_mesc)
-    fig4b_observations = get_observed_values(test_u2os)
-
-    pearson_mESC = pred.get_pearson_pred_obs(fig4a_predictions, fig4a_observations)
-    pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
-
+  if execution_flow == '3f':
+    calculate_figure_3(train_models)
+  elif execution_flow == '4a':
+    calculate_figure_4()
   else:
-    helper.print_and_log("Loading Predictions...", log_fn)
-    fig3_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'freq_distribution.pkl')
-    fig4a_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'in_del_distribution_mesc.pkl')
-    fig4b_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'in_del_distribution_u2os.pkl')
+    calculate_figure_3(train_models)
+    calculate_figure_4()
+
+  #
+  #
+  # # Only training / loading the models if no prediction file is found
+  # if prediction_file == '':
+  #   # Load LibA data for training
+  #   helper.print_and_log("Loading data...", log_fn)
+  #   all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+  #   helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
+  #   all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1).reset_index()
+  #   helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
+  #
+  #   # Reshuffling the data
+  #   reorder_mesc = all_data_mesc.sample(frac=1)
+  #   reorder_u2os = all_data_u2os.sample(frac=1)
+  #
+  #   # Splitting into train test so that test can be used for predictions
+  #   test_mesc = reorder_mesc.iloc[:189]
+  #   train_mesc = reorder_mesc.iloc[189:]
+  #   test_u2os = reorder_u2os.iloc[:185]
+  #   train_u2os = reorder_u2os.iloc[185:]
+  #
+  #   if train_models:
+  #     # Models for Figure 3
+  #     models_3 = model_creation(all_data_mesc, 'fig_3/')
+  #     # Models for Figure 4
+  #     models_4a = model_creation(train_mesc, 'fig_4mesc/')
+  #     models_4b = model_creation(train_u2os, 'fig_4u20s/')
+  #   else:
+  #     # TODO: loading must be changes
+  #     helper.print_and_log("Loading Neural Networks...", log_fn)
+  #     # models_3 = model_creation(all_data_mesc)
+  #     # models_4a = model_creation(all_data_mesc)
+  #     # models_4b = model_creation(all_data_u2os)
+  #     nn_params, nn2_params = load_neural_networks(out_nn_param_dir)
+  #     helper.print_and_log("Loading KNN...", log_fn)
+  #     rate_model, bp_model, normalizer = load_ins_models(out_model_dir)
+  #
+  #   fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, True)
+  #   fig4a_predictions = calculate_predictions(test_mesc, models_4a, False)
+  #   fig4b_predictions = calculate_predictions(test_u2os, models_4b, False)
+  #   # Get Observed Values
+  #   fig4a_observations = get_observed_values(test_mesc)
+  #   fig4b_observations = get_observed_values(test_u2os)
+  #
+  #   pearson_mESC = pred.get_pearson_pred_obs(fig4a_predictions, fig4a_observations)
+  #   pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
+  #
+  # else:
+  #   helper.print_and_log("Loading Predictions...", log_fn)
+  #   fig3_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'freq_distribution.pkl')
+  #   fig4a_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'in_del_distribution_mesc.pkl')
+  #   fig4b_predictions = load_pickle(out_dir + FOLDER_GRAPH_KEY + 'in_del_distribution_u2os.pkl')
+  #
+  #
+  # print('Plotting Graphs - 3f')
+  # plt_3.hist(fig3_predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id)
+  # print('Plotting Graphs - 4a')
+  # plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+  #
 
 
-  print('Plotting Graphs - 3f')
-  plt_3.hist(fig3_predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id)
-  print('Plotting Graphs - 4a')
-  plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4a_' + exec_id)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   # libX_dir = EXECUTION_PATH + '/data-libprocessing/'
   # if prediction_file == '':
@@ -449,6 +544,3 @@ if __name__ == '__main__':
   # Plotting Image 3f
 
 
-
-# Run bulk prediction once out of 300 times
-# mart_export.txtcutsites.pkl
