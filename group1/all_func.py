@@ -32,20 +32,30 @@ def initialize_files_and_folders(user_exec_id):
   # Set output location of model & params
   out_place = os.path.dirname(os.path.dirname(__file__)) + '/out/'
   util.ensure_dir_exists(out_place)
-
+  exec_id = ''
   # num_folds = helper.count_num_folders(out_place)
   if user_exec_id == '' or helper.count_num_folders(out_place) < 1:
     exec_id = datetime.datetime.now().strftime("%Y%m%d_%H%M")
   else:
     latest = datetime.datetime.strptime('1990/01/01', '%Y/%m/%d')
     for name in os.listdir(out_place):
+      try:
+        datetime.datetime.strptime(name, "%Y%m%d_%H%M")
+      except ValueError:
+        if name == user_exec_id:
+          exec_id = name
+          break
+        else:
+          continue
       date_time_obj = datetime.datetime.strptime(name, "%Y%m%d_%H%M")
       if name == user_exec_id:
         latest = date_time_obj
         break
       if latest < date_time_obj:
         latest = date_time_obj
-    exec_id = latest.strftime("%Y%m%d_%H%M")
+    if exec_id == '':
+      exec_id = latest.strftime("%Y%m%d_%H%M")
+
 
   # if use_prev and num_folds >= 1:
   #   out_letters = helper.alphabetize(num_folds - 1)
@@ -365,7 +375,7 @@ def calculate_figure_3(train_model):
   return
 
 
-def calculate_figure_4():
+def calculate_figure_4(train_model):
   helper.print_and_log("Loading data...", log_fn)
   all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1)
   all_data_mesc = all_data_mesc.reset_index()
@@ -376,7 +386,7 @@ def calculate_figure_4():
 
   helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
   # Reshuffling the data
-  unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), 189)
+  unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), size=189, replace=False)
   test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
   train_mesc = pd.merge(all_data_mesc, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
@@ -385,24 +395,41 @@ def calculate_figure_4():
   wrong_grna = wrong_grna.reset_index()
   wrong_grna = wrong_grna[wrong_grna['countEvents'] == 0]['Sample_Name']
   all_data_u2os = all_data_u2os[all_data_u2os["Sample_Name"].isin(wrong_grna) == False]
-  unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), 185)
+  unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), size=185, replace=False)
   test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
   train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
-  # reorder_mesc = all_data_mesc.sample(frac=1)
-  # reorder_u2os = all_data_u2os.sample(frac=1)
-  # Splitting into train test so that test can be used for predictions
-  # test_mesc = reorder_mesc.iloc[:189]
-  # train_mesc = reorder_mesc.iloc[189:]
-  # test_u2os = reorder_u2os.iloc[:185]
-  # train_u2os = reorder_u2os.iloc[185:]
+  if train_model:
+    # Models for Figure 4
+    models_4a = model_creation(train_mesc, 'fig_4mesc/')
+    models_4b = model_creation(train_u2os, 'fig_4u20s/')
+  else:
 
-  # Models for Figure 4
-  models_4b = model_creation(train_u2os, 'fig_4u20s/')
-  models_4a = model_creation(train_mesc, 'fig_4mesc/')
+    models_4a = load_models(out_dir + 'fig_4mesc/')
+    models_4b = load_models(out_dir + 'fig_4u20s/')
 
-  fig4a_predictions = calculate_predictions(test_mesc, models_4a, True)
-  fig4b_predictions = calculate_predictions(test_u2os, models_4b, True)
+  libA = load_lib_data(input_dir + 'libX/', 'libA')
+  test_mesc_targets = []
+  for sampleName in test_mesc['Sample_Name'].unique():
+    grna = sampleName.split('_')
+    grna = grna[len(grna) - 1]
+    sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
+    if len(sequences) == 1:
+      test_mesc_targets.append(sequences.values[0])
+    else:
+      test_mesc_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+  test_u2os_targets = []
+  for sampleName in test_u2os['Sample_Name'].unique():
+    grna = sampleName.split('_')
+    grna = grna[len(grna) - 1]
+    sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
+    if len(sequences) == 1:
+      test_u2os_targets.append(sequences.values[0])
+    else:
+      test_u2os_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+
+  fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, True)
+  fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, True)
 
   # Get Observed Values
   helper.print_and_log("Calculating the Observed Values...", log_fn)
@@ -448,10 +475,10 @@ if __name__ == '__main__':
   if execution_flow == '3f':
     calculate_figure_3(train_models)
   elif execution_flow == '4a':
-    calculate_figure_4()
+    calculate_figure_4(train_models)
   else:
     calculate_figure_3(train_models)
-    calculate_figure_4()
+    calculate_figure_4(train_models)
 
   #
   #

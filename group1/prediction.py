@@ -429,7 +429,7 @@ def bulk_predict(seq, d):
   # pred_all_df.to_csv(all_df_out_fn)
 
   ## Translate predictions to indel length frequencies
-  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60)  # normalised frequency distributon on indel lengths TODO: extract
+  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 30 + 1)  # normalised frequency distributon on indel lengths TODO: extract
   # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
   #   and normalised frequency distribution of frameshifts
   #   fs = {'+0': [..], '+1': [..], '+2': [..]}
@@ -482,7 +482,7 @@ def bulk_predict(seq, d):
   # d['Precision - Del Genotype'].append(del_gt_precision)
 
   dls = []
-  for del_len in range(1, 60):
+  for del_len in range(1, 30 + 1):
     dlkey = -1 * del_len
     dls.append(indel_len_pred[dlkey])
   dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
@@ -512,31 +512,43 @@ def bulk_predict(seq, d):
 def bulk_predict_all(lib_df):
   res = []
   size = len(lib_df)
-  prob = 1 - (1000000 / size)
 
-  for i, seq in lib_df['target'].iteritems():
-    if i % 1000000 == 0:
+  for i, seq in enumerate(lib_df):
+    if i % 10 == 0:
       print(f'Predicted {i} out of {size} sequences')
     r = np.random.random()
-    if r > (prob): # Get only 1 million
-      res.append(bulk_predict(seq, {}))
+    res.append(bulk_predict(seq, {}))
   return res
 
 
 def get_pearson_pred_obs(prediction, observation):
   r_values = []
-  for idx, obs in range(observation):
+  pred_normalized_fq = []
+  for pred in prediction:
+    current_pred_normalized_fq = []
+    for i in range(1, -31, -1):
+      if i != 0:
+        current_pred_normalized_fq.append(pred[1][i])
+    pred_normalized_fq.append(current_pred_normalized_fq)
+
+  for idx, key in enumerate(observation.keys()):
     # Get prediction of GRNA - TODO Change based on grna item
-    normalized_fq = prediction
+    # normalized_fq = prediction[prediction['Sample_Name']]
+    normalized_fq = []
+    for i in range(1, -31, -1):
+      if i != 0:
+        normalized_fq.append(observation[key][i])
+
+    # For dictionary, get items from 1 to -30 into an array
 
     x_mean = np.mean(normalized_fq)
-    y_mean = np.mean(observation[idx]) # TODO - check item to pick
-    pearson_numerator = np.sum((normalized_fq - x_mean) * (observation[idx] - y_mean))
+    y_mean = np.mean(pred_normalized_fq[idx]) # TODO - check item to pick
+    pearson_numerator = np.sum((normalized_fq - x_mean) * (pred_normalized_fq[idx] - y_mean))
     pearson_denom_x = np.sqrt(np.sum((normalized_fq - x_mean) ** 2))
-    pearson_denom_y = np.sqrt(np.sum((observation[idx] - y_mean) ** 2))
+    pearson_denom_y = np.sqrt(np.sum((pred_normalized_fq[idx] - y_mean) ** 2))
     pearson_denom = pearson_denom_x * pearson_denom_y
     r_values.append(pearson_numerator / pearson_denom)
-  return
+  return r_values
 
 
 # TODO optimize
