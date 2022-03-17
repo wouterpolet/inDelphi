@@ -524,12 +524,12 @@ def bulk_predict_all(lib_df):
 def get_pearson_pred_obs(prediction, observation):
   r_values = []
   pred_normalized_fq = []
-  for pred in prediction:
+  for pred in prediction:                                   # for each held-out gRNA
     current_pred_normalized_fq = []
-    for i in range(1, -31, -1):
+    for i in range(1, -31, -1):                             #   for indel length +1, -1, -2, ...,-30 (keys)
       if i != 0:
-        current_pred_normalized_fq.append(pred[1][i])
-    pred_normalized_fq.append(current_pred_normalized_fq)
+        current_pred_normalized_fq.append(pred[1][i])       #       get freq for key i
+    pred_normalized_fq.append(current_pred_normalized_fq)   #   return array of predicted frequencies
 
   for idx, key in enumerate(observation.keys()):
     # Get prediction of GRNA - TODO Change based on grna item
