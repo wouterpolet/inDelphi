@@ -270,10 +270,10 @@ def load_lib_data(folder_dir, libX):
 def get_args(args):
   exec_id = ''
   train_models = True
-  prediction_file = ''
+  load_prediction = False
 
-  if args.pred_file:
-    prediction_file = args.pred_file
+  if args.load_pred:
+    load_prediction = args.load_pred == 'True'
 
   if args.model_folder:
     exec_id = args.model_folder
@@ -284,7 +284,7 @@ def get_args(args):
   else:
     execution_flow = 'both'
 
-  return train_models, exec_id, prediction_file, execution_flow
+  return train_models, exec_id, load_prediction, execution_flow
 
 
 def model_creation(data, model_type):
@@ -357,14 +357,13 @@ def get_observed_values(data):
   return grouped_res
 
 
-def calculate_figure_3(train_model, prediction_file):
+def calculate_figure_3(train_model, load_prediction):
   fig3_predictions = None
   # Loading predictions if specified & file exists
-  if prediction_file != '':
-    if os.path.isfile(prediction_file):
-      fig3_predictions = load_predictions(prediction_file)
-    elif os.path.exists(out_dir + FOLDER_PRED_KEY + prediction_file):
-      fig3_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + prediction_file)
+  if load_prediction:
+    files = os.listdir(out_dir + FOLDER_PRED_KEY)
+    if len(files) == 1:
+      fig3_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + files[0])
 
   if fig3_predictions is None:
     if train_model:
@@ -384,21 +383,23 @@ def calculate_figure_3(train_model, prediction_file):
   return
 
 
-def calculate_figure_4(train_model, prediction_files):
+def calculate_figure_4(train_model, load_prediction):
   fig4a_predictions = None
   fig4b_predictions = None
   # Loading predictions if specified & file exists
-  if prediction_files != '':
-    prediction_file = [x.strip() for x in prediction_files.split(',')]
-    if os.path.isfile(prediction_file[0]):
-      fig4a_predictions = load_predictions(prediction_file[0])
-    elif os.path.exists(out_dir + FOLDER_PRED_KEY + prediction_file[0]):
-      fig4a_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + prediction_file[0])
-
-    if os.path.isfile(prediction_file[1]):
-      fig4b_predictions = load_predictions(prediction_file[1])
-    elif os.path.exists(out_dir + FOLDER_PRED_KEY + prediction_file[1]):
-      fig4b_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + prediction_file[1])
+  if load_prediction:
+    prediction_files = os.listdir(out_dir + FOLDER_PRED_KEY)
+    if len(prediction_files) == 2:
+      mesc_file = ''
+      u2os_file = ''
+      for prediction_file in prediction_files:
+        if "mesc" in prediction_file:
+          mesc_file = prediction_file
+        elif "u2os" in prediction_file:
+          u2os_file = prediction_file
+      if mesc_file != '' and u2os_file != '':
+        fig4a_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + mesc_file)
+        fig4b_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + u2os_file)
 
   helper.print_and_log("Loading data...", log_fn)
   all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1)
@@ -478,9 +479,9 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
   parser.add_argument('--process', dest='exec_type', choices=['3f', '4b', 'both'], type=str, help='Which model / figure to reproduce')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
-  parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
+  parser.add_argument('--load_pred', dest='load_pred', type=str, help='File name used to predict outcomes')
   args = parser.parse_args()
-  train_models, user_exec_id, prediction_file, execution_flow = get_args(args)
+  train_models, user_exec_id, load_prediction, execution_flow = get_args(args)
 
   # Program Local Directories
   out_directory, log_file, execution_id = initialize_files_and_folders(user_exec_id)
@@ -498,12 +499,12 @@ if __name__ == '__main__':
   out_plot_dir = out_dir + FOLDER_GRAPH_KEY
 
   if execution_flow == '3f':
-    calculate_figure_3(train_models, prediction_file)
+    calculate_figure_3(train_models, load_prediction)
   elif execution_flow == '4b':
-    calculate_figure_4(train_models, prediction_file)
+    calculate_figure_4(train_models, load_prediction)
   else:
-    calculate_figure_3(train_models, prediction_file)
-    calculate_figure_4(train_models, prediction_file)
+    calculate_figure_3(train_models, load_prediction)
+    calculate_figure_4(train_models, load_prediction)
 
   #
   #

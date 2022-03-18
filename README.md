@@ -10,13 +10,11 @@ Prediction Outcomes Files: extended_prediction_output_20220314_2255.pkl
 # Execution Steps and procedures
 TODO fill with args and options for exec (should be plug and play for staff)#
 Load only pre-trained model 3f named 3f_all_samples in the output folder
-and load pre-calculated predictions from the file named:freq_distribution.pkl
-(extension is important)
+and load pre-calculated predictions from the folder predictions
 
---process=3f --model_folder=3f_all_samples --pred_file=freq_distribution.pkl
+--process=3f --model_folder=3f_all_samples --load_pred=True
 
 Load only pre-trained model 4b named 4b_all_samples in the output folder
-and load pre-calculated predictions from the file names: in_del_distribution_mesc.pkl,in_del_distribution_u2os.pkl
-(extension is important, should be comma seperated)
+and load pre-calculated predictions from the folder predictions
 
---process=4b --model_folder=4b_all_samples --pred_file=in_del_distribution_mesc.pkl,in_del_distribution_u2os.pkl
+--process=4b --model_folder=4b_all_samples --load_pred=True
