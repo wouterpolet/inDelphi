@@ -19,11 +19,10 @@ warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
 
-
-FOLDER_PARAM_KEY = 'parameters/'
 FOLDER_STAT_KEY = 'statistics/'
-FOLDER_MODEL_KEY = 'model/'
+FOLDER_PARAM_KEY = 'parameters/'
 FOLDER_GRAPH_KEY = 'plots/'
+FOLDER_PRED_KEY = 'predictions/'
 FOLDER_INPUT_KEY = '/in/'
 EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 
@@ -63,9 +62,7 @@ def initialize_files_and_folders(user_exec_id):
   #   out_letters = helper.alphabetize(num_folds)
 
   out_dir = out_place + exec_id + '/'
-  util.ensure_dir_exists(out_dir + FOLDER_PARAM_KEY)
-  util.ensure_dir_exists(out_dir + FOLDER_STAT_KEY)
-  util.ensure_dir_exists(out_dir + FOLDER_MODEL_KEY)
+  util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
 
   log_fn = out_dir + '_log_%s.out' % exec_id
@@ -273,20 +270,21 @@ def load_lib_data(folder_dir, libX):
 def get_args(args):
   exec_id = ''
   train_models = True
-  prediction_file = ''
+  load_prediction = False
+
+  if args.load_pred:
+    load_prediction = args.load_pred == 'True'
+
   if args.model_folder:
     exec_id = args.model_folder
     train_models = False
-
-  if args.pred_file:
-    prediction_file = args.pred_file
 
   if args.exec_type:
     execution_flow = args.exec_type
   else:
     execution_flow = 'both'
 
-  return train_models, exec_id, prediction_file, execution_flow
+  return train_models, exec_id, load_prediction, execution_flow
 
 
 def model_creation(data, model_type):
@@ -320,16 +318,16 @@ def calculate_predictions(data, models, in_del):
   if in_del:
     helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions = pred.predict_data_outcomes(data, models, in_del)
-    predictions_file = f'{out_dir + FOLDER_GRAPH_KEY}in_del_distribution_mesc.pkl'
+    predictions_file = f'{out_dir + FOLDER_PRED_KEY}in_del_distribution_mesc.pkl'
     if os.path.exists(predictions_file):
-      predictions_file = f'{out_dir + FOLDER_GRAPH_KEY}in_del_distribution_u2os.pkl'
+      predictions_file = f'{out_dir + FOLDER_PRED_KEY}in_del_distribution_u2os.pkl'
   else:
     helper.print_and_log("Loading Gene Cutsites...", log_fn)
     gene_data = load_genes_cutsites(data)
     # Calculating outcome using our models - only calculate approx 1,000,000
     helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions = pred.predict_data_outcomes(gene_data, models, in_del)
-    predictions_file = f'{out_dir + FOLDER_GRAPH_KEY}freq_distribution.pkl'
+    predictions_file = f'{out_dir + FOLDER_PRED_KEY}freq_distribution.pkl'
 
   helper.print_and_log("Storing Predictions...", log_fn)
   with open(predictions_file, 'wb') as out_file:
@@ -359,23 +357,50 @@ def get_observed_values(data):
   return grouped_res
 
 
-def calculate_figure_3(train_model):
-  if train_model:
-    helper.print_and_log("Loading data...", log_fn)
-    all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
-    models_3 = model_creation(all_data_mesc, 'fig_3/')
-  else:
-    model_folder = out_dir + 'fig_3/'
-    models_3 = load_models(model_folder)
+def calculate_figure_3(train_model, load_prediction):
+  fig3_predictions = None
+  # Loading predictions if specified & file exists
+  if load_prediction:
+    files = os.listdir(out_dir + FOLDER_PRED_KEY)
+    if len(files) == 1:
+      fig3_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + files[0])
 
-  fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, False)
+  if fig3_predictions is None:
+    if train_model:
+      # Training model
+      helper.print_and_log("Loading data...", log_fn)
+      all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+      models_3 = model_creation(all_data_mesc, 'fig_3/')
+    else:
+      # Loading model
+      model_folder = out_dir + 'fig_3/'
+      models_3 = load_models(model_folder)
+    # Making predictions from model
+    fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, False)
 
   helper.print_and_log("Plotting Figure...", log_fn)
   plt_3.hist(fig3_predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id + '.pdf')
   return
 
 
-def calculate_figure_4(train_model):
+def calculate_figure_4(train_model, load_prediction):
+  fig4a_predictions = None
+  fig4b_predictions = None
+  # Loading predictions if specified & file exists
+  if load_prediction:
+    prediction_files = os.listdir(out_dir + FOLDER_PRED_KEY)
+    if len(prediction_files) == 2:
+      mesc_file = ''
+      u2os_file = ''
+      for prediction_file in prediction_files:
+        if "mesc" in prediction_file:
+          mesc_file = prediction_file
+        elif "u2os" in prediction_file:
+          u2os_file = prediction_file
+      if mesc_file != '' and u2os_file != '':
+        fig4a_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + mesc_file)
+        fig4b_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + u2os_file)
+
   helper.print_and_log("Loading data...", log_fn)
   all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1)
   all_data_mesc = all_data_mesc.reset_index()
@@ -399,37 +424,40 @@ def calculate_figure_4(train_model):
   test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
   train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
-  if train_model:
-    # Models for Figure 4
-    models_4a = model_creation(train_mesc, 'fig_4mesc/')
-    models_4b = model_creation(train_u2os, 'fig_4u20s/')
-  else:
-
-    models_4a = load_models(out_dir + 'fig_4mesc/')
-    models_4b = load_models(out_dir + 'fig_4u20s/')
-
-  libA = load_lib_data(input_dir + 'libX/', 'libA')
-  test_mesc_targets = []
-  for sampleName in test_mesc['Sample_Name'].unique():
-    grna = sampleName.split('_')
-    grna = grna[len(grna) - 1]
-    sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
-    if len(sequences) == 1:
-      test_mesc_targets.append(sequences.values[0])
+  # TODO: Discuss - unsure about this, cause if we're loading the predictions
+  #  we'll be loading new train/test data so might have overlapping new test sets (which were used during training)
+  #  Alternative - store & load observations
+  if fig4a_predictions is None or fig4b_predictions is None:
+    if train_model:
+      # Models for Figure 4
+      models_4a = model_creation(train_mesc, 'fig_4mesc/')
+      models_4b = model_creation(train_u2os, 'fig_4u20s/')
     else:
-      test_mesc_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
-  test_u2os_targets = []
-  for sampleName in test_u2os['Sample_Name'].unique():
-    grna = sampleName.split('_')
-    grna = grna[len(grna) - 1]
-    sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
-    if len(sequences) == 1:
-      test_u2os_targets.append(sequences.values[0])
-    else:
-      test_u2os_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+      models_4a = load_models(out_dir + 'fig_4mesc/')
+      models_4b = load_models(out_dir + 'fig_4u20s/')
 
-  fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, True)
-  fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, True)
+    libA = load_lib_data(input_dir + 'libX/', 'libA')
+    test_mesc_targets = []
+    for sampleName in test_mesc['Sample_Name'].unique():
+      grna = sampleName.split('_')
+      grna = grna[len(grna) - 1]
+      sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
+      if len(sequences) == 1:
+        test_mesc_targets.append(sequences.values[0])
+      else:
+        test_mesc_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+    test_u2os_targets = []
+    for sampleName in test_u2os['Sample_Name'].unique():
+      grna = sampleName.split('_')
+      grna = grna[len(grna) - 1]
+      sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
+      if len(sequences) == 1:
+        test_u2os_targets.append(sequences.values[0])
+      else:
+        test_u2os_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+
+    fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, True)
+    fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, True)
 
   # Get Observed Values
   helper.print_and_log("Calculating the Observed Values...", log_fn)
@@ -451,10 +479,9 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
   parser.add_argument('--process', dest='exec_type', choices=['3f', '4b', 'both'], type=str, help='Which model / figure to reproduce')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
-
-  parser.add_argument('--pred_file', dest='pred_file', type=str, help='File name used to predict outcomes')
+  parser.add_argument('--load_pred', dest='load_pred', type=str, help='File name used to predict outcomes')
   args = parser.parse_args()
-  train_models, user_exec_id, prediction_file, execution_flow = get_args(args)
+  train_models, user_exec_id, load_prediction, execution_flow = get_args(args)
 
   # Program Local Directories
   out_directory, log_file, execution_id = initialize_files_and_folders(user_exec_id)
@@ -468,17 +495,16 @@ if __name__ == '__main__':
   input_dir = EXECUTION_PATH + FOLDER_INPUT_KEY
 
   out_nn_param_dir = out_dir + FOLDER_PARAM_KEY
-  out_model_dir = out_dir + FOLDER_MODEL_KEY
   out_stat_dir = out_dir + FOLDER_STAT_KEY
   out_plot_dir = out_dir + FOLDER_GRAPH_KEY
 
   if execution_flow == '3f':
-    calculate_figure_3(train_models)
+    calculate_figure_3(train_models, load_prediction)
   elif execution_flow == '4b':
-    calculate_figure_4(train_models)
+    calculate_figure_4(train_models, load_prediction)
   else:
-    calculate_figure_3(train_models)
-    calculate_figure_4(train_models)
+    calculate_figure_3(train_models, load_prediction)
+    calculate_figure_4(train_models, load_prediction)
 
   #
   #
