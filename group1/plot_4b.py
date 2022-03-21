@@ -3,6 +3,11 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+# Code source
+# JohanC, “How to display boxplot in front of violinplot in seaborn -
+# seaborn zorder?” Aug 2021, last accessed 18 March 2022. [Online].
+# Available: https://stackoverflow.com/questions/68614447/
+# how-to-display-boxplot-in-front-of-violinplot-in-seaborn-seaborn-zorder
 
 def box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS, save_file=''):
     wht_clr = 'white'
@@ -40,8 +45,6 @@ def box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS, save_file=''):
     plt.show()
 
 if __name__ == '__main__':
-  # Source
-  # https://stackoverflow.com/questions/68614447/how-to-display-boxplot-in-front-of-violinplot-in-seaborn-seaborn-zorder
   # Genotype pearson correlation data
   corr_gentyp_mESC = np.array([99, 97, 86, 93, 85])
   corr_gentyp_U2OS = np.array([70, 80, 73, 65, 79])
