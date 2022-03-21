@@ -4,6 +4,7 @@ import autograd.numpy as np
 from collections import defaultdict
 from sklearn.neighbors import KNeighborsRegressor
 
+
 def load_statistics(data_nm, total_values, stat_dir=''):
   if stat_dir == '':
     ins_stat_dir = out_dir_stat + 'ins_stat.csv'
@@ -210,9 +211,6 @@ def generate_models(X, y, bp_stats, Normalizer):
     pickle.dump(Normalizer, f)
 
   return model, bp_model, Normalizer
-
-
-
 
 
 def train_knn(all_data, total_values, out_dir, out_stat):
