@@ -19,13 +19,15 @@ def box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS, save_file=''):
     df = corr_df1.melt(value_vars=['mESC'], var_name='group')
 
     ax = sns.violinplot(data=df, x='group', y='value', color=sec_clr, inner=None, linewidth=0, saturation=0.5)
-    sns.boxplot(data=df, x='group', y='value', saturation=0.5, width=0.4, palette='rocket', ax=ax,
+    bx = sns.boxplot(data=df, x='group', y='value', saturation=0.5, width=0.4, palette='rocket', ax=ax,
                 boxprops=dict(facecolor=pri_clr, color=pri_clr, zorder=2),
                 flierprops=dict(color=pri_clr, markeredgecolor=pri_clr),
                 capprops=dict(color=gry_clr),
                 whiskerprops=dict(color=gry_clr),
                 medianprops=dict(color=wht_clr)
                 )
+    ax.set_ylim([0, 1])
+    bx.set_ylim([0, 1])
     plt.show()
 
     # 4bii
@@ -35,13 +37,15 @@ def box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS, save_file=''):
     pri_clr = '#90ac4c'
     sec_clr = '#e0e4cc'
     ax = sns.violinplot(data=df2, x='group', y='value', color=sec_clr, inner=None, linewidth=0, saturation=0.5)
-    sns.boxplot(data=df2, x='group', y='value', saturation=0.5, width=0.4, palette='rocket', ax=ax,
+    bx = sns.boxplot(data=df2, x='group', y='value', saturation=0.5, width=0.4, palette='rocket', ax=ax,
                boxprops = dict(facecolor=pri_clr, color=pri_clr, zorder=2),
                flierprops = dict(color=pri_clr, markeredgecolor=pri_clr),
                capprops = dict(color=gry_clr),
                whiskerprops = dict(color=gry_clr),
                medianprops = dict(color=wht_clr)
               )
+    ax.set_ylim([0, 1])
+    bx.set_ylim([0, 1])
     plt.show()
 
 if __name__ == '__main__':

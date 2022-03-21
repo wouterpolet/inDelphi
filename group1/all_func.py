@@ -337,22 +337,38 @@ def calculate_predictions(data, models, in_del):
 
 
 def get_observed_values(data):
-  grouped = data.groupby('Sample_Name')['Size'].apply(list).to_dict()
+  unique_samples = data['Sample_Name'].unique()
   grouped_res = {}
-  # create deletion dicts
-  for k, v in grouped.items():
+  for sample_name in unique_samples:
     res = {}
+    sample_del = data[(data['Sample_Name'] == sample_name) & (data['Type'] == 'DELETION')]
+
+    res[1] = sum(data[(data['Sample_Name'] == sample_name) & (data['Type'] == 'INSERTION') & (data['Indel'].str.startswith('1+'))]['countEvents'])
+    total = res[1]
     for i in range(1, 31):
-      res[-i] = v.count(i)
-    grouped_res[k] = res
+      res[-i] = sum(sample_del[sample_del['Size'] == i]['countEvents'].tolist())
+      total += res[-i]
+
+    # Normalize
+    for length, count in res.items():
+      res[length] = count / total
+    grouped_res[sample_name] = res
+
+  # grouped = data.groupby('Sample_Name')['Size'].apply(list).to_dict()
+  # grouped_res = {}
+  # # create deletion dicts
+  # for k, v in grouped.items():
+  #   res = {}
+  #   for i in range(1, 31):
+  #     res[-i] = v.count(i)
+  #   grouped_res[k] = res
 
   # add insertions
-  for k, v in grouped_res.items():
-    v[1] = len(data[(data['Sample_Name'] == k) & (data['Type'] == 'INSERTION') & (
-      data['Indel'].str.startswith('1+'))])
-    total = sum(v.values())
-    for length, count in v.items():
-      v[length] = count / total
+  # for k, v in grouped_res.items():
+  #   v[1] = len(data[(data['Sample_Name'] == k) & (data['Type'] == 'INSERTION') & (data['Indel'].str.startswith('1+'))])
+  #   total = sum(v.values())
+  #   for length, count in v.items():
+  #     v[length] = count / total
 
   return grouped_res
 
