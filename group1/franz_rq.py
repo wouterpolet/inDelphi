@@ -11,20 +11,38 @@ def read_data(file):
   master_data = _pickle_load(file)
   return master_data['counts'], master_data['del_features']
 
-def parse_data(gRNA_df):     # input: MH-based deletions
+def get_del_type_freqs(deletions_df):     # input: MH-based deletions
 
-  # A single value GRNA -Train until 1871
-  exps = gRNA_df['Sample_Name'].unique()
+  MH_deletions = deletions_df[deletions_df['homologyLength'] != 0]
+  MH_deletions = MH_deletions.reset_index()
 
-  #microhomologies = gRNA_df[gRNA_df['homologyLength'] != 0 && gRNA_df['Indel'].str.startswith('1+')]]
-  # mh_less = deletions[deletions['homologyLength'] == 0]
+  MHless_deletions = deletions_df[deletions_df['homologyLength'] == 0]
+  MHless_deletions = MHless_deletions.reset_index()
+
+  exps = deletions_df['Sample_Name'].unique()
+
   freqs = []
+  MH_freqs = {}
+  MH_less_freq = {}
   i = 0
   for id, exp in enumerate(exps):
     print(i)
     # Microhomology computation
-    exp_data = gRNA_df[gRNA_df['Sample_Name'] == exp][
-      ['Indel', 'Type', 'countEvents', 'fraction', 'Size', 'homologyLength', 'homologyGCContent']]
+    exp_MH_dels = MH_deletions[MH_deletions['Sample_Name'] == exp][
+      ['Sample_Name', 'Indel', 'countEvents', 'Size', 'homologyLength', 'homologyGCContent']]
+
+    exp_MH_less_dels = MHless_deletions[MHless_deletions['Sample_Name'] == exp][
+      ['Sample_Name', 'Indel', 'countEvents', 'Size']]
+
+
+    grouped = data.groupby('Sample_Name')['Size'].apply(list).to_dict()
+    grouped_res = {}
+    # create deletion dicts
+    for k, v in grouped.items():
+      res = {}
+      for i in range(1, 31):
+        res[i] = v.count(i)
+      grouped_res[k] = res
 
     # Normalize Counts
     total_count = sum(exp_data['countEvents'])
@@ -32,52 +50,27 @@ def parse_data(gRNA_df):     # input: MH-based deletions
 
     freqs.append(exp_data['countEvents'])
     i += 1
-  return exps, freqs
+  return exps #, MH_freq, MH_less_freq
 
 
-
+# Load data
 input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
-counts, del_features = read_data(input_dir + 'dataset.pkl')
+counts, del_features = read_data(input_dir + 'dataset.pkl')       # mESC
+mESC_merged_data = pd.concat([counts, del_features], axis=1)
+mESC_merged_data = mESC_merged_data.reset_index()
 
-# counts, del_features = read_data(input_dir + 'U2OS.pkl')
-merged_data = pd.concat([counts, del_features], axis=1)
-merged_data = merged_data.reset_index()
+# counts, del_features = read_data(input_dir + 'U2OS.pkl')        # U2OS
 
-grouped = merged_data.groupby('Sample_Name')['Size'].apply(list).to_dict()
-grouped_res = {}
-# create deletion dicts
-for k, v in grouped.items():
-  res = {}
-  for i in range(1, 31):
-    res[-i] = v.count(i)
-  grouped_res[k] = res
-# add insertions
-for k, v in grouped_res.items():
-  v[1] = len(merged_data[(merged_data['Sample_Name'] == k) & (merged_data['Type'] == 'INSERTION') & (merged_data['Indel'].str.startswith('1+'))])
-  total = sum(v.values())
-  for length, count in v.items():
-    v[length] = count / total
+# Isolate MH-based and MH-less deletions
+mESC_deletions = mESC_merged_data[mESC_merged_data['Type'] == 'DELETION']
+#mESC_exps, mESC_MH_freq, mESC_MH_less_freq = get_del_type_freqs(mESC_deletions)
 
-deletions = merged_data[merged_data['Type'] == 'DELETION']
-insertions = merged_data[merged_data['Type'] == 'INSERTION']
-MHs = deletions[deletions['homologyLength'] != 0]
-insertions = insertions.reset_index()
-insertions1_bp = insertions[insertions['Indel'].str.startswith('1+')]
-MHs_n_Ins = pd.concat([MHs, insertions1_bp], axis=0)
-MHs_n_Ins = MHs_n_Ins.reset_index()
-MHs_n_Ins = MHs_n_Ins.drop(columns=['index'])
-
-MH_deletions = deletions[deletions['homologyLength'] != 0]
-MH_deletions = MH_deletions.reset_index()
-#MH_deletions = MH_deletions.drop(columns=['index'])
-
-MHless_deletions = deletions[deletions['homologyLength'] == 0]
-MHless_deletions = MHless_deletions.reset_index()
-#MHless_deletions = MHless_deletions.drop(columns=['index', 'homologyLength', 'homologyGCContent'])
 
 # genotype frequency distribution
-exps, freqs = parse_data(merged_data)
 
+
+
+#MHless_deletions = MHless_deletions.drop(columns=['index', 'homologyLength', 'homologyGCContent'])
 #[exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(MH_deletions)
 # unique del characterised by:
 #     delta, del length/Size
