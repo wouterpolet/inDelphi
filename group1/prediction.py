@@ -264,7 +264,7 @@ def predict_sequence_outcome(gene_data):
     # pred_all_df.to_csv(all_df_out_fn)
 
     ## Translate predictions to indel length frequencies
-    indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60)  # normalised frequency distributon on indel lengths
+    indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60+1)  # normalised frequency distributon on indel lengths
     # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
     #   and normalised frequency distribution of frameshifts
     #   fs = {'+0': [..], '+1': [..], '+2': [..]}
@@ -317,7 +317,7 @@ def predict_sequence_outcome(gene_data):
     d['Precision - Del Genotype'].append(del_gt_precision)
 
     dls = []
-    for del_len in range(1, 60):
+    for del_len in range(1, 60+1):
       dlkey = -1 * del_len
       dls.append(indel_len_pred[dlkey])
     dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
@@ -429,7 +429,7 @@ def bulk_predict(seq, d):
   # pred_all_df.to_csv(all_df_out_fn)
 
   ## Translate predictions to indel length frequencies
-  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 30 + 1)  # normalised frequency distributon on indel lengths TODO: extract
+  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60 + 1)  # normalised frequency distributon on indel lengths TODO: extract
   # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
   #   and normalised frequency distribution of frameshifts
   #   fs = {'+0': [..], '+1': [..], '+2': [..]}
@@ -482,7 +482,7 @@ def bulk_predict(seq, d):
   # d['Precision - Del Genotype'].append(del_gt_precision)
 
   dls = []
-  for del_len in range(1, 30 + 1):
+  for del_len in range(1, 60 + 1):
     dlkey = -1 * del_len
     dls.append(indel_len_pred[dlkey])
   dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths

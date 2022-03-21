@@ -431,6 +431,9 @@ def calculate_figure_4(train_model, load_prediction):
   test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
   train_mesc = pd.merge(all_data_mesc, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
+  unique_mesc = np.random.choice(train_mesc['Sample_Name'].unique(), size=1095, replace=False)
+  train_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
+
   # removing exception cases - aka deletions, with Homology length not 0 and no counter events
   wrong_grna = all_data_u2os[(all_data_u2os['Type'] == 'DELETION') & (all_data_u2os['homologyLength'] != 0)].groupby('Sample_Name').sum()
   wrong_grna = wrong_grna.reset_index()
