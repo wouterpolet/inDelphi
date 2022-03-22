@@ -349,6 +349,9 @@ def get_observed_values(data):
       res[-i] = sum(sample_del[sample_del['Size'] == i]['countEvents'].tolist())
       total += res[-i]
 
+    for i in range(31, 61):
+      res[-i] = 0
+
     # Normalize
     for length, count in res.items():
       res[length] = count / total
