@@ -82,7 +82,7 @@ def parse_data(all_data):
   return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
 
-def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs, iter=0):
+def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs, store=False):
   LOSS = 0
   test1 = []
   total_phi_del_freq = []  # 1961 x 1
@@ -147,7 +147,6 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     unnormalized_nn2 = unnormalized_nn2 + mh_contribution
     normalized_fq = np.divide(unnormalized_nn2, np.sum(unnormalized_nn2))
 
-
     # Pearson correlation squared loss
     x_mean = np.mean(normalized_fq)
     y_mean = np.mean(obs2[idx])
@@ -179,7 +178,8 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     # Append to list for storing
     total_phi_del_freq.append([NAMES[idx], mh_total, norm_entropy])
 
-  if iter == num_epochs - 1:
+  # if iter == num_epochs - 1:
+  if store:
     column_names = ["exp", "total_phi", "norm_entropy"]
     df = pd.DataFrame(total_phi_del_freq, columns=column_names)
     df.to_pickle(out_dir_params + 'total_phi_delfreq.pkl')
@@ -207,7 +207,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
 
   def objective(nn_params, nn2_params, iter):
     idx = batch_indices(iter)
-    return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed, iter=iter)
+    return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
 
   both_objective_grad = grad(objective, argnum=[0, 1])
 
@@ -231,11 +231,14 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
       # helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
       helper.print_and_log('...Saving parameters... | Timestamp: %s | Execution ID: %s | Parameter ID: %s' % (datetime.datetime.now(), exec_id, letters), log_fn)
       helper.save_parameters(nn_params, nn2_params, out_dir_params, letters)
-      if iter >= 10:
+      if iter == num_epochs - 1:
         pass
-        # plot_mh_score_function(nn_params, out_dir, letters + '_nn')
-        # plot_pred_obs(nn_params, nn2_params, INP_train, OBS_train, DEL_LENS_train, NAMES_train, 'train', letters)
-        # plot_pred_obs(nn_params, nn2_params, INP_test, OBS_test, DEL_LENS_test, NAMES_test, 'test', letters)
+        # print('check rsq now')
+        # jrq.plot_pred_obs(nn_params, nn2_params, INP_train, OBS_train, DEL_LENS_train, NAMES_train)
+        # jrq.plot_pred_obs(nn_params, nn2_params, INP_test, OBS_test, DEL_LENS_test, NAMES_test)
+        # jrq.plot_mh_score_function(nn_params)
+        # jrq.plot_pred_obs(nn_params, nn2_params, INP_train, OBS_train, DEL_LENS_train, NAMES_train)
+        # jrq.plot_pred_obs(nn_params, nn2_params, INP_test, OBS_test, DEL_LENS_test, NAMES_test)
 
     return None
 
@@ -314,4 +317,8 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   helper.save_train_test_names(NAMES_train, NAMES_test, out_dir)
   helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
-  return train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
+  trained_params = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
+  # get total phi scores and del frequencies for all of the data (not 85/15 split)
+  main_objective(trained_params[0], trained_params[1], INP, OBS, OBS2, DEL_LENS, 200, seed, store=True)
+  return trained_params
+
