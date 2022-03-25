@@ -518,7 +518,6 @@ def bulk_predict_all(lib_df):
   for i, seq in enumerate(lib_df):
     if i % 10 == 0:
       print(f'Predicted {i} out of {size} sequences')
-    r = np.random.random()
     res.append(bulk_predict(seq, {}))
   return res
 

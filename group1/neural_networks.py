@@ -189,6 +189,8 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, rs, store=Fa
 
   # TODO - Why are we returning a single loss value, if we're comuting the loss for both NNs?
   #  Shouldn't this return 2 items - Loss of NN1 and Loss of NN2?
+  current_statistics['nn_loss'] = nn_loss
+  current_statistics['nn2_loss'] = nn2_loss
   return LOSS # / num_samples #, nn_loss/len(inp), nn2_loss/len(inp)
 
 
@@ -227,9 +229,17 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
     test_size = len(INP_test)
 
     train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, seed) / train_size
+    # Jon - Research Question - Start
+    loss_statistics = {
+      'nn_train_loss': current_statistics['nn_loss']/train_size,
+      'nn2_train_loss': current_statistics['nn2_loss']/train_size
+    }
+    # Jon - Research Question - End
     test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, seed) / test_size
-    # train_loss, nn_train_loss, nn2_train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
-    # test_loss, nn_test_loss, nn2_test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, test_size, seed)
+    # Jon - Research Question - Start
+    loss_statistics['nn_test_loss'] = current_statistics['nn_loss']/test_size
+    loss_statistics['nn2_test_loss'] = current_statistics['nn2_loss']/test_size
+    # Jon - Research Question - End
 
     tr1_rsq, tr2_rsq = helper.rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train)
     te1_rsq, te2_rsq = helper.rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test)
@@ -243,11 +253,10 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
     helper.print_and_log(out_line, log_fn)
 
     # Jon - Research Question - Start
-    statistics = {'iteration': iter,
-                  'train_loss': train_loss,# 'nn_train_loss': nn_train_loss, 'nn2_train_loss': nn2_train_loss,
-                  'train_rsq1': tr1_rsq_mean, 'train_rsq2': tr2_rsq_mean, 'train_sample_size': train_size,
-                  'test_loss': test_loss,# 'nn_test_loss': nn_test_loss, 'nn2_test_loss': nn2_test_loss,
+    statistics = {'iteration': iter, 'train_loss': train_loss, 'train_rsq1': tr1_rsq_mean,
+                  'train_rsq2': tr2_rsq_mean, 'train_sample_size': train_size, 'test_loss': test_loss,
                   'test_rsq1': te1_rsq_mean, 'test_rsq2': te2_rsq_mean, 'test_sample_size': test_size}
+    statistics.update(loss_statistics)
     execution_statistics.append(statistics)
     # Jon - Research Question - End
 
@@ -322,6 +331,8 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   util.ensure_dir_exists(out_dir_params)
 
   # Jon - Research Question - Start
+  global current_statistics
+  current_statistics = {}
   global execution_statistics
   execution_statistics = []
   # Jon - Research Question - End

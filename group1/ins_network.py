@@ -123,7 +123,7 @@ def prepare_statistics(data_nm, total_values):
   bp_ins_df = defaultdict(list)
   ins_ratio_df = defaultdict(list)
 
-  timer = util.Timer(total=len(data_nm))
+  timer = util.Timer(total=len(total_values))
   exps = data_nm['Sample_Name'].unique()
 
   data_nm['delta'] = data_nm['Indel'].str.extract(r'(\d+)', expand=True)

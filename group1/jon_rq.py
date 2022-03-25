@@ -25,11 +25,31 @@ EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 
 
 def plot_nn_loss(loss_values):
-  plt.plot(loss_values['iteration'], loss_values['train_loss'], label="train", color='red', marker='o')
-  plt.plot(loss_values['iteration'], loss_values['test_loss'], label="test", color='blue', marker='o')
-  plt.title('Train Test Loss', fontsize=14)
+  # Plot Global Loss
+  plt.plot(loss_values['iteration'], loss_values['train_loss'], label="train NNs", color='#ff0000')
+  plt.plot(loss_values['iteration'], loss_values['test_loss'], label="test NNs", color='#0000ff')
+
+  plt.title('Train Test Loss\nNegative R squared Summed', fontsize=14)
   plt.xlabel('Epoch', fontsize=14)
   plt.ylabel('Loss', fontsize=14)
+  plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+  plt.tight_layout()
+  plt.grid(True)
+  plt.show()
+
+  # Plot Loss for NN1 and NN2
+  plt.plot(loss_values['iteration'], loss_values['nn_train_loss'], label="train NN1", color='#ff0000')
+  plt.plot(loss_values['iteration'], loss_values['nn_test_loss'], label="test NN1", color='#ff0000', linestyle='--')
+
+  plt.plot(loss_values['iteration'], loss_values['nn2_train_loss'], label="train NN2", color='#0000ff')
+  plt.plot(loss_values['iteration'], loss_values['nn2_test_loss'], label="test NN2", color='#0000ff', linestyle='--')
+
+  plt.title('Train Test Loss\nNegative R squared Per Network', fontsize=14)
+  plt.xlabel('Epoch', fontsize=14)
+  plt.ylabel('Loss', fontsize=14)
+  plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+  plt.tight_layout()
+
   plt.grid(True)
   plt.show()
   return
@@ -179,7 +199,7 @@ if __name__ == '__main__':
 
   helper.print_and_log("Learning Curve for Neural Networks...", log_fn)
   plot_nn_loss(loss_values)
-  #
+
   # helper.print_and_log("Learning Curve for Insertion Model...", log_fn)
   # total_values = helper.load_pickle(model_folder + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
   # all_data_mesc = pd.concat(helper.read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
