@@ -6,9 +6,9 @@ import helper
 import pandas as pd
 
 
-def load_sequences_from_cutsites(inp_fn):
+def load_sequences_from_cutsites(inp_fn, new_targets):
   pkl_file = os.path.dirname(inp_fn) + '/cutsites_1M.pkl'
-  if os.path.exists(pkl_file):
+  if os.path.exists(pkl_file) and not new_targets:
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
     return cutsites

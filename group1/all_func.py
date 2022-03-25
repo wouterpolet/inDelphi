@@ -153,9 +153,13 @@ def get_args(args):
   exec_id = ''
   train_models = True
   load_prediction = False
+  new_targets = False
 
   if args.load_pred:
     load_prediction = args.load_pred == 'True'
+
+  if args.new_targets:
+    new_targets = args.new_targets == 'True'
 
   if args.model_folder:
     exec_id = args.model_folder
@@ -166,7 +170,7 @@ def get_args(args):
   else:
     execution_flow = 'both'
 
-  return train_models, exec_id, load_prediction, execution_flow
+  return train_models, exec_id, load_prediction, execution_flow, new_targets
 
 
 def model_creation(data, model_type):
@@ -197,7 +201,7 @@ def load_models(out_dir):
   return helper.load_pickle(nn_files[0]), helper.load_pickle(nn2_files[0]), helper.load_pickle(out_dir + 'rate_model.pkl'), helper.load_pickle(out_dir + 'bp_model.pkl'), helper.load_pickle(out_dir + 'Normalizer.pkl')
 
 
-def calculate_predictions(data, models, in_del):
+def calculate_predictions(data, models, in_del, new_targets=False):
   # Getting the cutsites for human gene (approx 226,000,000)
   if in_del:
     helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
@@ -207,7 +211,7 @@ def calculate_predictions(data, models, in_del):
       predictions_file = f'{out_dir + FOLDER_PRED_KEY}in_del_distribution_u2os.pkl'
   else:
     helper.print_and_log("Loading Gene Cutsites...", log_fn)
-    gene_data = load_sequences_from_cutsites(data)
+    gene_data = load_sequences_from_cutsites(data, new_targets)
     # Calculating outcome using our models - only calculate approx 1,000,000
     helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions = pred.predict_data_outcomes(gene_data, models, in_del)
@@ -260,7 +264,7 @@ def get_observed_values(data):
   return grouped_res
 
 
-def calculate_figure_3(train_model, load_prediction):
+def calculate_figure_3(train_model, load_prediction, new_targets):
   fig3_predictions = None
   # Loading predictions if specified & file exists
   if load_prediction:
@@ -279,7 +283,7 @@ def calculate_figure_3(train_model, load_prediction):
       model_folder = out_dir + 'fig_3/'
       models_3 = load_models(model_folder)
     # Making predictions from model
-    fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, False)
+    fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, in_del=False, new_targets=new_targets)
 
   helper.print_and_log("Plotting Figure...", log_fn)
   plt_3.hist(fig3_predictions, out_dir + FOLDER_GRAPH_KEY + 'plot_3f_' + exec_id + '.pdf')
@@ -412,8 +416,9 @@ if __name__ == '__main__':
   parser.add_argument('--process', dest='exec_type', choices=['3f', '4b', 'both'], type=str, help='Which model / figure to reproduce')
   parser.add_argument('--model_folder', dest='model_folder', type=str, help='Variable indicating the execution id of the trained neural network and knn')
   parser.add_argument('--load_pred', dest='load_pred', type=str, help='File name used to predict outcomes')
+  parser.add_argument('--new_targets', dest='new_targets', type=str, help='Boolean indicating if new targets should be calculated')
   args = parser.parse_args()
-  train_models, user_exec_id, load_prediction, execution_flow = get_args(args)
+  train_models, user_exec_id, load_prediction, execution_flow, new_targets = get_args(args)
 
   # Program Local Directories
   out_directory, log_file, execution_id = initialize_files_and_folders(user_exec_id)
@@ -431,11 +436,11 @@ if __name__ == '__main__':
   out_plot_dir = out_dir + FOLDER_GRAPH_KEY
 
   if execution_flow == '3f':
-    calculate_figure_3(train_models, load_prediction)
+    calculate_figure_3(train_models, load_prediction, new_targets)
   elif execution_flow == '4b':
     calculate_figure_4(train_models, load_prediction)
   else:
-    calculate_figure_3(train_models, load_prediction)
+    calculate_figure_3(train_models, load_prediction, new_targets)
     calculate_figure_4(train_models, load_prediction)
   helper.print_and_log('Execution complete - model folder: ' + exec_id, log_fn)
   #
