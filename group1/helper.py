@@ -8,6 +8,28 @@ from past.builtins import xrange
 from scipy.stats import pearsonr
 
 
+def load_pickle(file):
+  return pickle.load(open(file, 'rb'))
+
+
+def read_data(file):
+  master_data = load_pickle(file)
+  return master_data['counts'], master_data['del_features']
+
+
+def reverse_complement(dna):
+  lib = {'A': 'T', 'G': 'C', 'C': 'G', 'T': 'A', 'N': 'N', 'W': 'W', 'S': 'S', 'M': 'K', 'K': 'M', 'R': 'Y', 'Y': 'R'}
+  new_dna = ''
+  dna = dna.upper()
+  for c in dna:
+    if c in lib:
+      new_dna += lib[c]
+    else:
+      new_dna += c
+  new_dna = new_dna[::-1]
+  return new_dna
+
+
 def sigmoid(x):
   return 0.5 * (np.tanh(x) + 1.0)
 

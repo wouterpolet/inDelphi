@@ -1,19 +1,23 @@
-import argparse, datetime, os, pickle, warnings, re
-from collections import defaultdict
+import argparse
+import datetime
 import glob
-import plot_3f as plt_3
-import plot_4b as plt_4
+import os
+import pickle
+import warnings
+from collections import defaultdict
 
 import autograd.numpy as np
 import pandas as pd
 from pandas.core.common import SettingWithCopyWarning
 
 import helper
-import util as util
-
-import neural_networks as nn
 import ins_network as knn
+import neural_networks as nn
+import plot_3f as plt_3
+import plot_4b as plt_4
 import prediction as pred
+import util as util
+from sequence_generation import load_sequences_from_cutsites
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -65,6 +69,7 @@ def initialize_files_and_folders(user_exec_id):
   util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY)
+  util.ensure_dir_exists(out_dir + FOLDER_PARAM_KEY + FOLDER_STAT_KEY)
 
   log_fn = out_dir + '_log_%s.out' % datetime.datetime.now().strftime("%Y%m%d_%H%M")
   with open(log_fn, 'w') as f:
@@ -72,15 +77,6 @@ def initialize_files_and_folders(user_exec_id):
   helper.print_and_log('out dir: ' + out_dir, log_fn)
 
   return out_dir, log_fn, exec_id
-
-
-def load_pickle(file):
-  return pickle.load(open(file, 'rb'))
-
-
-def read_data(file):
-  master_data = load_pickle(file)
-  return master_data['counts'], master_data['del_features']
 
 
 # TODO fix / optimize
@@ -93,20 +89,6 @@ def parse_header(header):
   end = int(w[3]) + 30
   data_type = w[4]
   return gene_kgid, chrom, start, end
-
-
-# TODO fix / optimize
-def reverse_complement(dna):
-  lib = {'A': 'T', 'G': 'C', 'C': 'G', 'T': 'A', 'N': 'N', 'W': 'W', 'S': 'S', 'M': 'K', 'K': 'M', 'R': 'Y', 'Y': 'R'}
-  new_dna = ''
-  dna = dna.upper()
-  for c in dna:
-    if c in lib:
-      new_dna += lib[c]
-    else:
-      new_dna += c
-  new_dna = new_dna[::-1]
-  return new_dna
 
 
 # TODO fix / optimize
@@ -136,119 +118,18 @@ def maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force=False):
   return dd, dd_shuffled, num_flushed
 
 
-def get_cutsites(chrom, sequence):
-  all_cutsites = []
-  for idx in range(len(sequence)):  # for each base in the sequence
-    # this loop finishes only each of 5% of all found cutsites with 60-bp long sequences containing only ACGT
-    seq = ''
-    if sequence[idx: idx + 2] == 'CC':  # if on top strand find CC
-      cutsite = idx + 6  # cut site of complementary GG is +6 away
-      seq = sequence[cutsite - 30: cutsite + 30]  # get sequence 30bp L and R of cutsite
-      seq = reverse_complement(seq)  # compute reverse strand (complimentary) to target with gRNA
-      orientation = '-'
-    if sequence[idx: idx + 2] == 'GG':  # if GG on top strand
-      cutsite = idx - 4  # cut site is -4 away
-      seq = sequence[cutsite - 30: cutsite + 30]  # get seq 30bp L and R of cutsite
-      orientation = '+'
-    if seq == '':
-      continue
-    if len(seq) != 60:
-      continue
-
-    # Sanitize input
-    seq = seq.upper()
-    if 'N' in seq:  # if N in collected sequence, return to start of for loop / skip rest
-      continue
-    if not re.match('^[ACGT]*$', seq):  # if there not only ACGT in seq, ^
-      continue
-
-    all_cutsites.append([chrom, seq])
-  return all_cutsites
-
-
-def find_cutsites_and_predict(inp_fn, use_file=''):
-  # Loading Cutsites
-  if use_file != '':
-    all_data = read_data(use_file + 'cutsites.pkl')
-  else:
-    # Calculating & Loading cutsites for all files
-    cutsites = []
-    for file in glob.glob(inp_fn + '*.fa'):
-      file_name = os.path.basename(file)
-      print('Working on: ' + file_name)
-      data = open(file, "r").readlines()[1:]
-      sequence = ''.join(data).replace('\n', '')
-      cutsites.extend(get_cutsites(file_name, sequence))
-
-    all_data = pd.DataFrame(cutsites, columns=['Chromosome', 'Cutsite'])
-    with open(inp_fn + 'cutsites.pkl', 'wb') as f:
-      pickle.dump(all_data, f)
-
-  #
-  #
-  # # Calculate statistics on df, saving to alldf_dict
-  # # Deletion positions
-  # d = defaultdict(list)            # dictionary with values as list
-  # dd_shuffled = defaultdict(list)
-  # num_flushed = 0
-  # all_data = open(inp_fn, "r").readlines()[1:]
-  # sequence = ''.join(all_data).replace('\n', '')
-  #
-  # bulk_predict(sequence, d)
-  # generate dicts (dd and dd_shuffled) for info on each cutsite seq found in the sequence and for a shuffled cutsite sequence
-  # dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)  # likely no flush
-  #                               maybe flush out the dict contents into csv and return empty dicts
-
-  # maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = True)   # will flush due to forced flushing
-  return
-
-
-def load_genes_cutsites(inp_fn):
-  pkl_file = os.path.dirname(inp_fn) + '/cutsites.pkl'
-  if os.path.exists(pkl_file):
-    cutsites = load_pickle(pkl_file)
-    cutsites = cutsites.rename(columns={'Cutsite': 'target'})
-    return cutsites
-
-  all_lines = open(inp_fn, "r").readlines()
-  sequence, chrom = '', ''
-  data, cutsites = [], []
-  for line in all_lines:
-    if '>' in line:
-      if sequence != '':
-        data.append([chrom, sequence])
-        if len(data) % 100 == 0:
-          print('Working on: ', len(data))
-        cutsites.extend(get_cutsites(chrom, sequence))
-      chrom = line.strip().split('|')[3]
-      sequence = ''
-    else:
-      sequence += line.strip()
-
-  data.append([chrom, sequence]) # Adding last item
-  print('Last item inserted: ', len(data))
-  cutsites.extend(get_cutsites(chrom, sequence))
-
-  print('Storing to file')
-  all_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome', 'Location', 'Orientation'])
-  with open(pkl_file, 'wb') as f:
-    pickle.dump(all_data, f)
-  print('Gene cutsite complete')
-  return cutsites
-
-
 def load_ins_models(out_dir_model):
-  return load_pickle(out_dir_model + 'rate_model.pkl'), load_pickle(out_dir_model + 'bp_model.pkl'), load_pickle(out_dir_model + 'Normalizer.pkl')
+  return helper.load_pickle(out_dir_model + 'rate_model.pkl'), helper.load_pickle(out_dir_model + 'bp_model.pkl'), helper.load_pickle(out_dir_model + 'Normalizer.pkl')
 
 
 def load_neural_networks(out_dir_params):
   files = os.listdir(out_dir_params)
   nn_names = files[len(files) - 3:len(files) - 1]
-  return load_pickle(out_dir_params + nn_names[0]), load_pickle(out_dir_params + nn_names[1])
+  return helper.load_pickle(out_dir_params + nn_names[0]), helper.load_pickle(out_dir_params + nn_names[1])
 
 
 def load_predictions(pred_file):
-  return load_pickle(pred_file)
+  return helper.load_pickle(pred_file)
 
 
 def load_lib_data(folder_dir, libX):
@@ -301,7 +182,7 @@ def model_creation(data, model_type):
   Model Creation, Training & Optimization
   '''
   helper.print_and_log("Training KNN...", log_fn)
-  total_values = load_pickle(out_folder + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
+  total_values = helper.load_pickle(out_folder + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
   rate_model, bp_model, normalizer = knn.train_knn(data, total_values, out_folder, out_folder + FOLDER_STAT_KEY)
   return nn_params, nn2_params, rate_model, bp_model, normalizer
 
@@ -311,7 +192,7 @@ def load_models(out_dir):
   nn_path = out_dir + FOLDER_PARAM_KEY
   files = os.listdir(nn_path)
   nn_names = files[len(files) - 3:len(files) - 1]
-  return load_pickle(nn_path + nn_names[0]), load_pickle(nn_path + nn_names[1]), load_pickle(out_dir + 'rate_model.pkl'), load_pickle(out_dir + 'bp_model.pkl'), load_pickle(out_dir + 'Normalizer.pkl')
+  return helper.load_pickle(nn_path + nn_names[0]), helper.load_pickle(nn_path + nn_names[1]), helper.load_pickle(out_dir + 'rate_model.pkl'), helper.load_pickle(out_dir + 'bp_model.pkl'), helper.load_pickle(out_dir + 'Normalizer.pkl')
 
 
 def calculate_predictions(data, models, in_del):
@@ -324,7 +205,7 @@ def calculate_predictions(data, models, in_del):
       predictions_file = f'{out_dir + FOLDER_PRED_KEY}in_del_distribution_u2os.pkl'
   else:
     helper.print_and_log("Loading Gene Cutsites...", log_fn)
-    gene_data = load_genes_cutsites(data)
+    gene_data = load_sequences_from_cutsites(data)
     # Calculating outcome using our models - only calculate approx 1,000,000
     helper.print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions = pred.predict_data_outcomes(gene_data, models, in_del)
@@ -450,9 +331,9 @@ def calculate_figure_4(train_model, load_prediction):
         fig4a_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + mesc_file)
         fig4b_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + u2os_file)
         # train_mesc = load_prediction(train_mesc_file)
-        test_mesc = load_pickle(test_mesc_file)
+        test_mesc = helper.load_pickle(test_mesc_file)
         # train_u2os = load_prediction(train_u2os_file)
-        test_u2os = load_pickle(test_u2os_file)
+        test_u2os = helper.load_pickle(test_u2os_file)
         test_mesc_targets, test_u2os_targets = get_targets(test_mesc, test_u2os)
 
   helper.print_and_log("Loading data...", log_fn)
@@ -554,7 +435,7 @@ if __name__ == '__main__':
   else:
     calculate_figure_3(train_models, load_prediction)
     calculate_figure_4(train_models, load_prediction)
-
+  helper.print_and_log('Execution complete - model folder: ' + exec_id, log_fn)
   #
   #
   # # Only training / loading the models if no prediction file is found
