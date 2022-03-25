@@ -66,7 +66,7 @@ def initialize_files_and_folders(user_exec_id):
   util.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY)
 
-  log_fn = out_dir + '_log_%s.out' % exec_id
+  log_fn = out_dir + '_log_%s.out' % datetime.datetime.now().strftime("%Y%m%d_%H%M")
   with open(log_fn, 'w') as f:
     pass
   helper.print_and_log('out dir: ' + out_dir, log_fn)
@@ -438,7 +438,7 @@ def calculate_figure_4(train_model, load_prediction):
   # Loading predictions if specified & file exists
   if load_prediction:
     prediction_files = os.listdir(out_dir + FOLDER_PRED_KEY)
-    if len(prediction_files) == 6:
+    if len(prediction_files) == 3:
       mesc_file = ''
       u2os_file = ''
       for prediction_file in prediction_files:
