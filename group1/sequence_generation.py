@@ -16,10 +16,8 @@ def load_sequences_from_cutsites(inp_fn, new_targets):
   cutsites = load_genes_cutsites(inp_fn)
   # TODO - check with team, do we allow replicated elements or only unique?
   subsample = cutsites.sample(n=1003524)
-  print('Storing to file')
-  all_data = pd.DataFrame(subsample, columns=['Cutsite', 'Chromosome', 'Location', 'Orientation'])
   with open(pkl_file, 'wb') as f:
-    pickle.dump(all_data, f)
+    pickle.dump(subsample, f)
   return subsample
 
 

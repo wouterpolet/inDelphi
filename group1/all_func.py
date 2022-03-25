@@ -392,8 +392,8 @@ def calculate_figure_4(train_model, load_prediction):
       models_4b = load_models(out_dir + 'fig_4u20s/')
 
     test_mesc_targets, test_u2os_targets = get_targets(test_mesc, test_u2os)
-    fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, True)
-    fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, True)
+    fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, in_del=True)
+    fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, in_del=True)
 
   # Get Observed Values
   helper.print_and_log("Calculating the Observed Values...", log_fn)
