@@ -26,6 +26,7 @@ warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
 FOLDER_STAT_KEY = 'statistics/'
 FOLDER_PARAM_KEY = 'parameters/'
 FOLDER_GRAPH_KEY = 'plots/'
+FOLDER_LOG_KEY = 'logs/'
 FOLDER_PRED_KEY = 'predictions/'
 FOLDER_INPUT_KEY = '/in/'
 EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
@@ -70,8 +71,9 @@ def initialize_files_and_folders(user_exec_id):
   util.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_PARAM_KEY + FOLDER_STAT_KEY)
+  util.ensure_dir_exists(out_dir + FOLDER_LOG_KEY)
 
-  log_fn = out_dir + '_log_%s.out' % datetime.datetime.now().strftime("%Y%m%d_%H%M")
+  log_fn = out_dir + FOLDER_LOG_KEY + '_log_%s.out' % datetime.datetime.now().strftime("%Y%m%d_%H%M")
   with open(log_fn, 'w') as f:
     pass
   helper.print_and_log('out dir: ' + out_dir, log_fn)
@@ -123,9 +125,11 @@ def load_ins_models(out_dir_model):
 
 
 def load_neural_networks(out_dir_params):
-  files = os.listdir(out_dir_params)
-  nn_names = files[len(files) - 3:len(files) - 1]
-  return helper.load_pickle(out_dir_params + nn_names[0]), helper.load_pickle(out_dir_params + nn_names[1])
+  nn_files = glob.glob(out_dir_params + "*_nn.pkl")
+  nn_files.sort(reverse=True)
+  nn2_files = glob.glob(out_dir_params + "*_nn2.pkl")
+  nn2_files.sort(reverse=True)
+  return helper.load_pickle(nn_files[0]), helper.load_pickle(nn2_files[0])
 
 
 def load_predictions(pred_file):
@@ -194,11 +198,10 @@ def model_creation(data, model_type):
 def load_models(out_dir):
   helper.print_and_log("Loading models...", log_fn)
   nn_path = out_dir + FOLDER_PARAM_KEY
-  nn_files = glob.glob(nn_path + "*_nn.pkl")
-  nn_files.sort(reverse=True)
-  nn2_files = glob.glob(nn_path + "*_nn2.pkl")
-  nn2_files.sort(reverse=True)
-  return helper.load_pickle(nn_files[0]), helper.load_pickle(nn2_files[0]), helper.load_pickle(out_dir + 'rate_model.pkl'), helper.load_pickle(out_dir + 'bp_model.pkl'), helper.load_pickle(out_dir + 'Normalizer.pkl')
+  nn, nn_2 = load_neural_networks(nn_path)
+  rate, bp, norm = load_ins_models(out_dir)
+  model = {'nn': nn, 'nn_2': nn_2, 'rate': rate, 'bp': bp, 'norm': norm}
+  return model
 
 
 def calculate_predictions(data, models, in_del, new_targets=False):

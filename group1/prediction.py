@@ -109,6 +109,7 @@ def predict_all(seq, cutsite):
       mhless_score = np.exp(mhless_score - 0.25 * dl)
       mask = np.concatenate([np.zeros(jdx, ), np.ones(1, ) * mhless_score, np.zeros(len(mh_vector) - jdx - 1, )])
       mhfull_contribution = mhfull_contribution + mask
+  # TODO: this always returns array of 0s
   mhfull_contribution = mhfull_contribution.reshape(-1, 1)
   unfq = unfq + mhfull_contribution  # unnormalised MH deletion genotype freq distribution
 
@@ -140,11 +141,12 @@ def predict_all(seq, cutsite):
 
   mh_vector = np.array(mh_len)
   for dl in nonfull_dls:  # for each deletion length 1- 60 unaccounted for by MH-NN predictions
-    mhless_score = helper.nn_match_score_function(nn2_params,
-                                                  np.array(dl))  # nn2_params are the trained MH-less NN parameters
+    # nn2_params are the trained MH-less NN parameters
+    mhless_score = helper.nn_match_score_function(nn2_params, np.array(dl))
     mhless_score = np.exp(mhless_score - 0.25 * dl)  # get its the MH-less phi
 
-    # unnormalised scores for MH-based deletion genotypes + unnormalised scores for each unacccounted for MH-less based genotype
+    # unnormalised scores for MH-based deletion genotypes + unnormalised scores for each unacccounted
+    #  for MH-less based genotype
     unfq.append(mhless_score)
     pred_gt_pos.append('e')  # gtpos = delta, but delta position = e?
     pred_del_len.append(dl)  # deletion length
@@ -541,6 +543,7 @@ def get_pearson_pred_obs(prediction, observation):
 
     # For dictionary, get items from 1 to -30 into an array
 
+    # TODO - not sure if we should use the in-built pearson function? pearsonr
     x_mean = np.mean(normalized_fq)
     y_mean = np.mean(pred_normalized_fq[idx]) # TODO - check item to pick
     pearson_numerator = np.sum((normalized_fq - x_mean) * (pred_normalized_fq[idx] - y_mean))
@@ -553,24 +556,24 @@ def get_pearson_pred_obs(prediction, observation):
 
 def predict_data_outcomes(lib_df, models, in_del):
   global nn_params
-  nn_params = models[0]
+  nn_params = models['nn']
   global nn2_params
-  nn2_params = models[1]
+  nn2_params = models['nn_2']
   global rate_model
-  rate_model = models[2]
+  rate_model = models['rate']
   global bp_model
-  bp_model = models[3]
+  bp_model = models['bp']
   global normalizer
-  normalizer = models[4]
+  normalizer = models['norm']
 
   if in_del:
     return bulk_predict_all(lib_df)
   else:
     # Only selecting a smaller number of samples to predict rather than all cutsites
     # TODO - check with team, do we allow replicated elements or only unique?
-    subset = lib_df.sample(n=1003524)
-    # subset = lib_df.sample(n=50)
-    return predict_sequence_outcome(subset)
+    # subset = lib_df.sample(n=1003524)
+    # subset = lib_df.sample(n=100)
+    return predict_sequence_outcome(lib_df)
 
 
 if __name__ == '__main__':

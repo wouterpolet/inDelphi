@@ -11,14 +11,14 @@ def load_sequences_from_cutsites(inp_fn, new_targets):
   if os.path.exists(pkl_file) and not new_targets:
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
-    return cutsites
-
-  cutsites = load_genes_cutsites(inp_fn)
-  # TODO - check with team, do we allow replicated elements or only unique?
-  subsample = cutsites.sample(n=1003524)
-  with open(pkl_file, 'wb') as f:
-    pickle.dump(subsample, f)
-  return subsample
+  else:
+    cutsites = load_genes_cutsites(inp_fn)
+    # TODO - check with team, do we allow replicated elements or only unique?
+    cutsites = cutsites.sample(n=1003524)
+    with open(pkl_file, 'wb') as f:
+      pickle.dump(cutsites, f)
+  cutsites['Location'] = cutsites['Location'].astype('int32')
+  return cutsites
 
 
 def load_genes_cutsites(inp_fn):
