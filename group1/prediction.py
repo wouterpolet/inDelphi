@@ -264,7 +264,7 @@ def predict_sequence_outcome(gene_data):
     # pred_all_df.to_csv(all_df_out_fn)
 
     ## Translate predictions to indel length frequencies
-    indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60)  # normalised frequency distributon on indel lengths
+    indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60+1)  # normalised frequency distributon on indel lengths
     # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
     #   and normalised frequency distribution of frameshifts
     #   fs = {'+0': [..], '+1': [..], '+2': [..]}
@@ -317,7 +317,7 @@ def predict_sequence_outcome(gene_data):
     d['Precision - Del Genotype'].append(del_gt_precision)
 
     dls = []
-    for del_len in range(1, 60):
+    for del_len in range(1, 60+1):
       dlkey = -1 * del_len
       dls.append(indel_len_pred[dlkey])
     dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
@@ -429,7 +429,7 @@ def bulk_predict(seq, d):
   # pred_all_df.to_csv(all_df_out_fn)
 
   ## Translate predictions to indel length frequencies
-  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 30 + 1)  # normalised frequency distributon on indel lengths TODO: extract
+  indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60 + 1)  # normalised frequency distributon on indel lengths TODO: extract
   # dict: {+1 = [..], -1 = [..], ..., -60 = [..]}
   #   and normalised frequency distribution of frameshifts
   #   fs = {'+0': [..], '+1': [..], '+2': [..]}
@@ -482,7 +482,7 @@ def bulk_predict(seq, d):
   # d['Precision - Del Genotype'].append(del_gt_precision)
 
   dls = []
-  for del_len in range(1, 30 + 1):
+  for del_len in range(1, 60 + 1):
     dlkey = -1 * del_len
     dls.append(indel_len_pred[dlkey])
   dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
@@ -551,122 +551,6 @@ def get_pearson_pred_obs(prediction, observation):
   return r_values
 
 
-# TODO optimize
-def predict_all_items(all_data, df_out_dir, nn_params, nn2_params, rate_model, bp_model, normalizer):
-  dd = defaultdict(list)
-  dd_shuffled = defaultdict(list)
-
-  num_flushed = 0
-  timer = util.Timer(len(all_data))
-  # for i, line in enumerate(all_data):
-  # d = pd.DataFrame(columns=[
-  #   'Sequence Context' , 'Local Cutsite' , 'Cas9 gRNA' , 'Total Phi Score'
-  #   , '1ins/del Ratio' , 'Frameshift +0' , 'Frameshift +1' , 'Frameshift +2' , 'Frameshift'
-  #   , 'Precision - Del Genotype', 'Precision - Del Length', 'Precision - All Genotype', '-4 nt', '-3 nt', 'Highest Ins Rate', 'Highest Del Rate'
-  # ])
-  d = defaultdict(list)
-
-  for i, line in all_data.iterrows():
-    header = line['name']
-    grna = line['grna']
-    sequence = line['target']
-
-    # TODO check what to do
-    # This might be a problem - all of grna len = 55
-    # if len(sequence) < 60 or len(sequence) > 500000:
-    #   continue
-
-    # predict for a single exon/intron
-    # bulk_predict(header, sequence, dd, dd_shuffled, df_out_dir)
-    # dd, dd_shuffled, num_flushed = maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed)
-
-    # local_cutsite = find where grna starts, add the total len of the grna and subtract 3 (PAM)
-    # local_cutsite = sequence.index(grna) + len(grna) - 3
-    local_cutsite = 27
-    # sequence =
-
-    # seq_context is a tuple/pair? of seq and shuffled_seq
-    # trained k-nn, bp summary dict, normalizer
-    ans = predict_all(sequence, local_cutsite, rate_model, bp_model, normalizer)
-    pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans
-
-    # normalised frequency distributon on indel lengths
-    indel_len_pred, fs = get_indel_len_pred(pred_all_df)
-
-    #
-    # Store prediction statistics
-    #
-    d['Sequence Context'].append(sequence)
-    d['Local Cutsite'].append(local_cutsite)
-    d['Cas9 gRNA'].append(grna)
-
-    d['Total Phi Score'].append(total_phi_score)
-    d['1ins/del Ratio'].append(ins_del_ratio)
-
-    # d['1ins Rate Model'].append(rate_model)
-    # d['1ins bp Model'].append(bp_model)
-    # d['1ins normalizer'].append(normalizer)
-
-    d['Frameshift +0'].append(fs['+0'])
-    d['Frameshift +1'].append(fs['+1'])
-    d['Frameshift +2'].append(fs['+2'])
-    d['Frameshift'].append(fs['+1'] + fs['+2'])
-
-    crit = (pred_del_df['Genotype Position'] != 'e')
-    s = pred_del_df[crit]['Predicted_Frequency']
-    s = np.array(s) / sum(s)
-    del_gt_precision = 1 - entropy(s) / np.log(len(s))
-
-    d['Precision - Del Genotype'].append(del_gt_precision)
-
-    dls = []
-    for del_len in range(1, DELETION_LEN_LIMIT):
-      dlkey = -1 * del_len
-      dls.append(indel_len_pred[dlkey])
-    dls = np.array(dls) / sum(dls)
-    del_len_precision = 1 - entropy(dls) / np.log(len(dls))
-
-    d['Precision - Del Length'].append(del_len_precision)
-
-    crit = (pred_all_df['Genotype Position'] != 'e')
-    s = pred_all_df[crit]['Predicted_Frequency']
-    s = np.array(s) / sum(s)
-    all_gt_precision = 1 - entropy(s) / np.log(len(s))
-    d['Precision - All Genotype'].append(all_gt_precision)
-
-    negthree_nt = sequence[local_cutsite - 1]
-    negfour_nt = sequence[local_cutsite]
-    d['-4 nt'].append(negfour_nt)
-    d['-3 nt'].append(negthree_nt)
-
-    crit = (pred_all_df['Category'] == 'ins')
-    highest_ins_rate = max(pred_all_df[crit]['Predicted_Frequency'])
-    crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Genotype Position'] != 'e')
-    highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])
-    d['Highest Ins Rate'].append(highest_ins_rate)
-    d['Highest Del Rate'].append(highest_del_rate)
-
-    # d.append({
-    #   'Sequence Context': sequence
-    #   , 'Local Cutsite': local_cutsite, 'Cas9 gRNA': grna
-    #   , 'Total Phi Score': total_phi_score, '1ins/del Ratio': ins_del_ratio
-    #   , 'Frameshift +0': fs['+0'], 'Frameshift +1': fs['+1']
-    #   , 'Frameshift +2': fs['+2'], 'Frameshift': fs['+1'] + fs['+2']
-    #   , 'Precision - Del Genotype': del_gt_precision, 'Precision - Del Length': del_len_precision
-    #   , 'Precision - All Genotype': all_gt_precision
-    #   , '-4 nt': negfour_nt, '-3 nt': negthree_nt,
-    #   "Highest Ins Rate": highest_ins_rate, 'Highest Del Rate': highest_del_rate
-    # }, ignore_index=True)
-
-    if (i - 1) % 50 == 0 and i > 1:
-      print('%s pct, %s' % (i / 500, datetime.datetime.now()))
-
-    timer.update()
-  return pd.DataFrame(d)
-
-  # maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force=True)
-
-
 def predict_data_outcomes(lib_df, models, in_del):
   global nn_params
   nn_params = models[0]
@@ -686,7 +570,6 @@ def predict_data_outcomes(lib_df, models, in_del):
     subset = lib_df.sample(n=1003524)
     # subset = lib_df.sample(n=50)
     return predict_sequence_outcome(subset)
-
 
 
 if __name__ == '__main__':

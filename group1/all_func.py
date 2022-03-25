@@ -349,6 +349,9 @@ def get_observed_values(data):
       res[-i] = sum(sample_del[sample_del['Size'] == i]['countEvents'].tolist())
       total += res[-i]
 
+    for i in range(31, 61):
+      res[-i] = 0
+
     # Normalize
     for length, count in res.items():
       res[length] = count / total
@@ -399,9 +402,38 @@ def calculate_figure_3(train_model, load_prediction):
   return
 
 
+def get_targets(test_mesc, test_u2os):
+  libA = load_lib_data(input_dir + 'libX/', 'libA')
+  test_mesc_targets = []
+  for sampleName in test_mesc['Sample_Name'].unique():
+    grna = sampleName.split('_')
+    grna = grna[len(grna) - 1]
+    sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
+    if len(sequences) == 1:
+      test_mesc_targets.append(sequences.values[0])
+    else:
+      test_mesc_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+  test_u2os_targets = []
+  for sampleName in test_u2os['Sample_Name'].unique():
+    grna = sampleName.split('_')
+    grna = grna[len(grna) - 1]
+    sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
+    if len(sequences) == 1:
+      test_u2os_targets.append(sequences.values[0])
+    else:
+      test_u2os_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
+  return test_mesc_targets, test_u2os_targets
+
+
 def calculate_figure_4(train_model, load_prediction):
   fig4a_predictions = None
   fig4b_predictions = None
+
+  train_mesc_file = f'{out_dir + FOLDER_PRED_KEY}train_mesc.pkl'
+  test_mesc_file = f'{out_dir + FOLDER_PRED_KEY}test_mesc.pkl'
+  train_u2os_file = f'{out_dir + FOLDER_PRED_KEY}train_u2os.pkl'
+  test_u2os_file = f'{out_dir + FOLDER_PRED_KEY}test_u2os.pkl'
+
   # Loading predictions if specified & file exists
   if load_prediction:
     prediction_files = os.listdir(out_dir + FOLDER_PRED_KEY)
@@ -416,34 +448,53 @@ def calculate_figure_4(train_model, load_prediction):
       if mesc_file != '' and u2os_file != '':
         fig4a_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + mesc_file)
         fig4b_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + u2os_file)
+        # train_mesc = load_prediction(out_dir + FOLDER_PRED_KEY + train_mesc_file)
+        test_mesc = load_prediction(out_dir + FOLDER_PRED_KEY + test_mesc_file)
+        # train_u2os = load_prediction(out_dir + FOLDER_PRED_KEY + train_u2os_file)
+        test_u2os = load_prediction(out_dir + FOLDER_PRED_KEY + test_u2os_file)
+        test_mesc_targets, test_u2os_targets = get_targets(test_mesc, test_u2os)
 
   helper.print_and_log("Loading data...", log_fn)
-  all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1)
-  all_data_mesc = all_data_mesc.reset_index()
-  helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
-  all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1)
-  all_data_u2os = all_data_u2os.reset_index()
-  all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
-
-  helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
-  # Reshuffling the data
-  unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), size=189, replace=False)
-  test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
-  train_mesc = pd.merge(all_data_mesc, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
-
-  # removing exception cases - aka deletions, with Homology length not 0 and no counter events
-  wrong_grna = all_data_u2os[(all_data_u2os['Type'] == 'DELETION') & (all_data_u2os['homologyLength'] != 0)].groupby('Sample_Name').sum()
-  wrong_grna = wrong_grna.reset_index()
-  wrong_grna = wrong_grna[wrong_grna['countEvents'] == 0]['Sample_Name']
-  all_data_u2os = all_data_u2os[all_data_u2os["Sample_Name"].isin(wrong_grna) == False]
-  unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), size=185, replace=False)
-  test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
-  train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
-
-  # TODO: Discuss - unsure about this, cause if we're loading the predictions
-  #  we'll be loading new train/test data so might have overlapping new test sets (which were used during training)
-  #  Alternative - store & load observations
   if fig4a_predictions is None or fig4b_predictions is None:
+    # Loading Data
+    all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1)
+    all_data_mesc = all_data_mesc.reset_index()
+    helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
+    all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1)
+    all_data_u2os = all_data_u2os.reset_index()
+    all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
+
+    helper.print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
+    # Reshuffling the data
+    unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), size=189, replace=False)
+    test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
+    train_mesc = pd.merge(all_data_mesc, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
+
+    unique_mesc = np.random.choice(train_mesc['Sample_Name'].unique(), size=1095, replace=False)
+    train_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
+
+    # removing exception cases - aka deletions, with Homology length not 0 and no counter events
+    wrong_grna = all_data_u2os[(all_data_u2os['Type'] == 'DELETION') & (all_data_u2os['homologyLength'] != 0)].groupby('Sample_Name').sum()
+    wrong_grna = wrong_grna.reset_index()
+    wrong_grna = wrong_grna[wrong_grna['countEvents'] == 0]['Sample_Name']
+    all_data_u2os = all_data_u2os[all_data_u2os["Sample_Name"].isin(wrong_grna) == False]
+    unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), size=185, replace=False)
+    test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
+    train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
+
+    # Store the data used:
+    helper.print_and_log("Storing Predictions...", log_fn)
+
+    with open(train_mesc_file, 'wb') as out_file:
+      pickle.dump(train_mesc, out_file)
+    with open(test_mesc_file, 'wb') as out_file:
+      pickle.dump(test_mesc, out_file)
+
+    with open(train_u2os_file, 'wb') as out_file:
+      pickle.dump(train_u2os, out_file)
+    with open(test_u2os_file, 'wb') as out_file:
+      pickle.dump(test_u2os, out_file)
+
     if train_model:
       # Models for Figure 4
       models_4a = model_creation(train_mesc, 'fig_4mesc/')
@@ -452,26 +503,7 @@ def calculate_figure_4(train_model, load_prediction):
       models_4a = load_models(out_dir + 'fig_4mesc/')
       models_4b = load_models(out_dir + 'fig_4u20s/')
 
-    libA = load_lib_data(input_dir + 'libX/', 'libA')
-    test_mesc_targets = []
-    for sampleName in test_mesc['Sample_Name'].unique():
-      grna = sampleName.split('_')
-      grna = grna[len(grna) - 1]
-      sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
-      if len(sequences) == 1:
-        test_mesc_targets.append(sequences.values[0])
-      else:
-        test_mesc_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
-    test_u2os_targets = []
-    for sampleName in test_u2os['Sample_Name'].unique():
-      grna = sampleName.split('_')
-      grna = grna[len(grna) - 1]
-      sequences = libA.loc[libA['target'].str.contains(grna, case=False)]['target']
-      if len(sequences) == 1:
-        test_u2os_targets.append(sequences.values[0])
-      else:
-        test_u2os_targets.extend([seq for seq in sequences if seq.index(grna) == 10])
-
+    test_mesc_targets, test_u2os_targets = get_targets(test_mesc, test_u2os)
     fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, True)
     fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, True)
 

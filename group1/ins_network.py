@@ -5,9 +5,14 @@ from collections import defaultdict
 from sklearn.neighbors import KNeighborsRegressor
 
 
-def load_statistics(data_nm, total_values):
-  ins_stat_dir = out_dir_stat + 'ins_stat.csv'
-  bp_stat_dir = out_dir_stat + 'bp_stat.csv'
+def load_statistics(data_nm, total_values, stat_dir=''):
+  if stat_dir == '':
+    ins_stat_dir = out_dir_stat + 'ins_stat.csv'
+    bp_stat_dir = out_dir_stat + 'bp_stat.csv'
+  else:
+    ins_stat_dir = stat_dir + 'ins_stat.csv'
+    bp_stat_dir = stat_dir + 'bp_stat.csv'
+
   if os.path.isfile(ins_stat_dir) and os.path.isfile(bp_stat_dir):
     print('Loading statistics...')
     ins_stat = pd.read_csv(ins_stat_dir, index_col=0)
@@ -179,10 +184,10 @@ def featurize(rate_stats, Y_nm):
   return X, Y, Normalizer
 
 
-def generate_models(X, Y, bp_stats, Normalizer):
+def generate_models(X, y, bp_stats, Normalizer):
   # Train rate model
   model = KNeighborsRegressor()
-  model.fit(X, Y)
+  model.fit(X, y)
   with open(out_dir_model + 'rate_model.pkl', 'wb') as f:
     pickle.dump(model, f)
 
