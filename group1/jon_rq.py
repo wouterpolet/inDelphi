@@ -25,8 +25,8 @@ EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 
 
 def plot_nn_loss(loss_values):
-  plt.plot(loss_values['iteration'], loss_values['train_loss'], color='red', marker='o')
-  plt.plot(loss_values['iteration'], loss_values['test_loss'], color='blue', marker='o')
+  plt.plot(loss_values['iteration'], loss_values['train_loss'], label="train", color='red', marker='o')
+  plt.plot(loss_values['iteration'], loss_values['test_loss'], label="test", color='blue', marker='o')
   plt.title('Train Test Loss', fontsize=14)
   plt.xlabel('Epoch', fontsize=14)
   plt.ylabel('Loss', fontsize=14)

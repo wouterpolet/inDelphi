@@ -192,7 +192,8 @@ def model_creation(data, model_type):
   helper.print_and_log("Training KNN...", log_fn)
   total_values = helper.load_pickle(out_folder + FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
   rate_model, bp_model, normalizer = knn.train_knn(data, total_values, out_folder, out_folder + FOLDER_STAT_KEY)
-  return nn_params, nn2_params, rate_model, bp_model, normalizer
+  model = {'nn': nn_params, 'nn_2': nn2_params, 'rate': rate_model, 'bp': bp_model, 'norm': normalizer}
+  return model
 
 
 def load_models(out_dir):
