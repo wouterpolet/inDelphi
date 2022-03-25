@@ -2,3 +2,5 @@
 **/out
 
 /in/chromosome/
+in/franz_data_pertubed_test.pkl
+in/franz_data_pertubed_train.pkl
