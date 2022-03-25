@@ -190,9 +190,11 @@ def model_creation(data, model_type):
 def load_models(out_dir):
   helper.print_and_log("Loading models...", log_fn)
   nn_path = out_dir + FOLDER_PARAM_KEY
-  files = os.listdir(nn_path)
-  nn_names = files[len(files) - 3:len(files) - 1]
-  return helper.load_pickle(nn_path + nn_names[0]), helper.load_pickle(nn_path + nn_names[1]), helper.load_pickle(out_dir + 'rate_model.pkl'), helper.load_pickle(out_dir + 'bp_model.pkl'), helper.load_pickle(out_dir + 'Normalizer.pkl')
+  nn_files = glob.glob(nn_path + "*_nn.pkl")
+  nn_files.sort(reverse=True)
+  nn2_files = glob.glob(nn_path + "*_nn2.pkl")
+  nn2_files.sort(reverse=True)
+  return helper.load_pickle(nn_files[0]), helper.load_pickle(nn2_files[0]), helper.load_pickle(out_dir + 'rate_model.pkl'), helper.load_pickle(out_dir + 'bp_model.pkl'), helper.load_pickle(out_dir + 'Normalizer.pkl')
 
 
 def calculate_predictions(data, models, in_del):
@@ -270,7 +272,7 @@ def calculate_figure_3(train_model, load_prediction):
     if train_model:
       # Training model
       helper.print_and_log("Loading data...", log_fn)
-      all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+      all_data_mesc = pd.concat(helper.read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
       models_3 = model_creation(all_data_mesc, 'fig_3/')
     else:
       # Loading model
@@ -339,10 +341,10 @@ def calculate_figure_4(train_model, load_prediction):
   helper.print_and_log("Loading data...", log_fn)
   if fig4a_predictions is None or fig4b_predictions is None:
     # Loading Data
-    all_data_mesc = pd.concat(read_data(input_dir + 'dataset.pkl'), axis=1)
+    all_data_mesc = pd.concat(helper.read_data(input_dir + 'dataset.pkl'), axis=1)
     all_data_mesc = all_data_mesc.reset_index()
     helper.print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
-    all_data_u2os = pd.concat(read_data(input_dir + 'U2OS.pkl'), axis=1)
+    all_data_u2os = pd.concat(helper.read_data(input_dir + 'U2OS.pkl'), axis=1)
     all_data_u2os = all_data_u2os.reset_index()
     all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
 

@@ -7,7 +7,20 @@ import pandas as pd
 
 
 def load_sequences_from_cutsites(inp_fn):
-  return load_genes_cutsites(inp_fn)
+  pkl_file = os.path.dirname(inp_fn) + '/cutsites_1M.pkl'
+  if os.path.exists(pkl_file):
+    cutsites = helper.load_pickle(pkl_file)
+    cutsites = cutsites.rename(columns={'Cutsite': 'target'})
+    return cutsites
+
+  cutsites = load_genes_cutsites(inp_fn)
+  # TODO - check with team, do we allow replicated elements or only unique?
+  subsample = cutsites.sample(n=1003524)
+  print('Storing to file')
+  all_data = pd.DataFrame(subsample, columns=['Cutsite', 'Chromosome', 'Location', 'Orientation'])
+  with open(pkl_file, 'wb') as f:
+    pickle.dump(all_data, f)
+  return subsample
 
 
 def load_genes_cutsites(inp_fn):
@@ -72,6 +85,7 @@ def get_cutsites(chrom, sequence):
 
     all_cutsites.append([chrom, seq])
   return all_cutsites
+
 
 def find_cutsites_and_predict(inp_fn, use_file=''):
   # Loading Cutsites
