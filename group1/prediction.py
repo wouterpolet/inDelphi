@@ -567,6 +567,7 @@ def predict_data_outcomes(lib_df, models, in_del):
     return bulk_predict_all(lib_df)
   else:
     # Only selecting a smaller number of samples to predict rather than all cutsites
+    # TODO - check with team, do we allow replicated elements or only unique?
     subset = lib_df.sample(n=1003524)
     # subset = lib_df.sample(n=50)
     return predict_sequence_outcome(subset)
