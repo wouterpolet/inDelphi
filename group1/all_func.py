@@ -64,6 +64,7 @@ def initialize_files_and_folders(user_exec_id):
   out_dir = out_place + exec_id + '/'
   util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY)
   util.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
+  util.ensure_dir_exists(out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY)
 
   log_fn = out_dir + '_log_%s.out' % exec_id
   with open(log_fn, 'w') as f:
@@ -429,15 +430,15 @@ def calculate_figure_4(train_model, load_prediction):
   fig4a_predictions = None
   fig4b_predictions = None
 
-  train_mesc_file = f'{out_dir + FOLDER_PRED_KEY}train_mesc.pkl'
-  test_mesc_file = f'{out_dir + FOLDER_PRED_KEY}test_mesc.pkl'
-  train_u2os_file = f'{out_dir + FOLDER_PRED_KEY}train_u2os.pkl'
-  test_u2os_file = f'{out_dir + FOLDER_PRED_KEY}test_u2os.pkl'
+  train_mesc_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}train_mesc.pkl'
+  test_mesc_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}test_mesc.pkl'
+  train_u2os_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}train_u2os.pkl'
+  test_u2os_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}test_u2os.pkl'
 
   # Loading predictions if specified & file exists
   if load_prediction:
     prediction_files = os.listdir(out_dir + FOLDER_PRED_KEY)
-    if len(prediction_files) == 2:
+    if len(prediction_files) == 6:
       mesc_file = ''
       u2os_file = ''
       for prediction_file in prediction_files:
@@ -448,10 +449,10 @@ def calculate_figure_4(train_model, load_prediction):
       if mesc_file != '' and u2os_file != '':
         fig4a_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + mesc_file)
         fig4b_predictions = load_predictions(out_dir + FOLDER_PRED_KEY + u2os_file)
-        # train_mesc = load_prediction(out_dir + FOLDER_PRED_KEY + train_mesc_file)
-        test_mesc = load_prediction(out_dir + FOLDER_PRED_KEY + test_mesc_file)
-        # train_u2os = load_prediction(out_dir + FOLDER_PRED_KEY + train_u2os_file)
-        test_u2os = load_prediction(out_dir + FOLDER_PRED_KEY + test_u2os_file)
+        # train_mesc = load_prediction(train_mesc_file)
+        test_mesc = load_pickle(test_mesc_file)
+        # train_u2os = load_prediction(train_u2os_file)
+        test_u2os = load_pickle(test_u2os_file)
         test_mesc_targets, test_u2os_targets = get_targets(test_mesc, test_u2os)
 
   helper.print_and_log("Loading data...", log_fn)
