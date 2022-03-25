@@ -12,9 +12,9 @@ def load_sequences_from_cutsites(inp_fn, new_targets):
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
   else:
-    cutsites = load_genes_cutsites(inp_fn)
+    all_cutsites = load_genes_cutsites(inp_fn)
     # TODO - check with team, do we allow replicated elements or only unique?
-    cutsites = cutsites.sample(n=1003524)
+    cutsites = all_cutsites.sample(n=1003524).reset_index(drop=True)
     with open(pkl_file, 'wb') as f:
       pickle.dump(cutsites, f)
   cutsites['Location'] = cutsites['Location'].astype('int32')
