@@ -120,7 +120,7 @@ def init_random_params(scale, layer_sizes, rs=npr.RandomState(0)):
           for m, n in zip(layer_sizes[:-1], layer_sizes[1:])]
 
 
-def rsq(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs):
+def rsq(nn_params, nn2_params, inp, obs, obs2, del_lens):
   rsqs1, rsqs2 = [], []
   for idx in range(len(inp)):
     ##

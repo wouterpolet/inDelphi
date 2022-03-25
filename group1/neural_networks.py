@@ -9,6 +9,7 @@ import autograd.numpy.random as npr
 
 from scipy.stats import entropy
 from sklearn.model_selection import train_test_split
+import helper_jon as jrq
 
 
 def initialize_model():
@@ -58,7 +59,6 @@ def parse_data(all_data):
       continue
     mh_exp_data['countEvents'] = mh_exp_data['countEvents'].div(total_count)
 
-
     freqs.append(mh_exp_data['countEvents'])
     mh_lens.append(mh_exp_data['homologyLength'].astype('int32'))
     gc_fracs.append(mh_exp_data['homologyGCContent'])
@@ -82,9 +82,10 @@ def parse_data(all_data):
   return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
 
-def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples, rs, store=False):
+def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, rs, store=False):
   LOSS = 0
-  test1 = []
+  nn_loss = 0
+  nn2_loss = 0
   total_phi_del_freq = []  # 1961 x 1
   for idx in range(len(inp)):  # for each gRNA's zipped [MH lengths, MH GC fracs] in the training set
     ##
@@ -119,6 +120,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     rsq = (pearson_numerator / pearson_denom) ** 2
     neg_rsq = rsq * -1
     LOSS += neg_rsq
+    nn_loss += neg_rsq
 
     #
     # I want to make sure nn2 never outputs anything negative.
@@ -157,6 +159,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     rsq = (pearson_numerator / pearson_denom) ** 2
     neg_rsq = rsq * -1
     LOSS += neg_rsq
+    nn2_loss += neg_rsq
 
     if not isinstance(mh_phi_total, float):
       mh_phi_total = mh_phi_total._value
@@ -184,7 +187,9 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, num_samples,
     df = pd.DataFrame(total_phi_del_freq, columns=column_names)
     df.to_pickle(out_dir_params + 'total_phi_delfreq.pkl')
 
-  return LOSS / num_samples
+  # TODO - Why are we returning a single loss value, if we're comuting the loss for both NNs?
+  #  Shouldn't this return 2 items - Loss of NN1 and Loss of NN2?
+  return LOSS # / num_samples #, nn_loss/len(inp), nn2_loss/len(inp)
 
 
 def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
@@ -198,33 +203,53 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
   init_nn2_params = helper.init_random_params(param_scale, nn2_layer_sizes, rs=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
 
-  batch_size = 200
-  num_batches = int(np.ceil(len(INP_train) / batch_size))
+  # batch_size = 200
+  # num_batches = int(np.ceil(len(INP_train) / batch_size))
 
-  def batch_indices(iter):
-    idx = iter % num_batches
-    return slice(idx * batch_size, (idx + 1) * batch_size)
+  # def batch_indices(iter):
+  #   idx = iter % num_batches
+  #   return slice(idx * batch_size, (idx + 1) * batch_size)
 
   def objective(nn_params, nn2_params, iter):
-    idx = batch_indices(iter)
-    return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
+    # idx = batch_indices(iter)
+    return main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, seed)
 
   both_objective_grad = grad(objective, argnum=[0, 1])
 
   def print_perf(nn_params, nn2_params, iter):
-    # helper.print_and_log(str(iter), log_fn)
-    if iter % 5 != 0:
-      return None
+    # if iter % 5 != 0:
+    #   return None
 
-    train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
-    test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, len(INP_test), seed)
+    # TODO - Check with team, why for one we use batch size - set to 200 (constant) and the other we use input length
+    #  Why not use the len(INP_Train)?
+    # train_size = batch_size
+    train_size = len(INP_train)
+    test_size = len(INP_test)
 
-    tr1_rsq, tr2_rsq = helper.rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
-    te1_rsq, te2_rsq = helper.rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test, len(INP_test), seed)
+    train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, seed) / train_size
+    test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, seed) / test_size
+    # train_loss, nn_train_loss, nn2_train_loss = main_objective(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train, batch_size, seed)
+    # test_loss, nn_test_loss, nn2_test_loss = main_objective(nn_params, nn2_params, INP_test, OBS_test, OBS2_train, DEL_LENS_test, test_size, seed)
 
-    out_line = ' %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (
-      iter, train_loss, np.mean(tr1_rsq), np.mean(tr2_rsq), test_loss, np.mean(te1_rsq), np.mean(te2_rsq))
+    tr1_rsq, tr2_rsq = helper.rsq(nn_params, nn2_params, INP_train, OBS_train, OBS2_train, DEL_LENS_train)
+    te1_rsq, te2_rsq = helper.rsq(nn_params, nn2_params, INP_test, OBS_test, OBS2_test, DEL_LENS_test)
+
+    tr1_rsq_mean = np.mean(tr1_rsq)
+    tr2_rsq_mean = np.mean(tr2_rsq)
+    te1_rsq_mean = np.mean(te1_rsq)
+    te2_rsq_mean = np.mean(te2_rsq)
+
+    out_line = ' %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (iter, train_loss, tr1_rsq_mean, tr2_rsq_mean, test_loss, te1_rsq_mean, te2_rsq_mean)
     helper.print_and_log(out_line, log_fn)
+
+    # Jon - Research Question - Start
+    statistics = {'iteration': iter,
+                  'train_loss': train_loss,# 'nn_train_loss': nn_train_loss, 'nn2_train_loss': nn2_train_loss,
+                  'train_rsq1': tr1_rsq_mean, 'train_rsq2': tr2_rsq_mean, 'train_sample_size': train_size,
+                  'test_loss': test_loss,# 'nn_test_loss': nn_test_loss, 'nn2_test_loss': nn2_test_loss,
+                  'test_rsq1': te1_rsq_mean, 'test_rsq2': te2_rsq_mean, 'test_sample_size': test_size}
+    execution_statistics.append(statistics)
+    # Jon - Research Question - End
 
     if iter % 10 == 0:
       letters = helper.alphabetize(int(iter / 10))
@@ -296,6 +321,11 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   out_dir_params = out_dir + 'parameters/'
   util.ensure_dir_exists(out_dir_params)
 
+  # Jon - Research Question - Start
+  global execution_statistics
+  execution_statistics = []
+  # Jon - Research Question - End
+
   seed, nn_layer_sizes, nn2_layer_sizes = initialize_model()
   [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(merged)
 
@@ -319,6 +349,10 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   trained_params = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
   # get total phi scores and del frequencies for all of the data (not 85/15 split)
-  main_objective(trained_params[0], trained_params[1], INP, OBS, OBS2, DEL_LENS, 200, seed, store=True)
+  main_objective(trained_params[0], trained_params[1], INP, OBS, OBS2, DEL_LENS, seed, store=True)
+
+  # Jon - Research Question - Start
+  jrq.save_statistics(out_dir, pd.DataFrame(execution_statistics))
+  # Jon - Research Question - End
   return trained_params
 
