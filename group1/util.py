@@ -1,6 +1,6 @@
 # Utility library functions: IO, OS stuff
 
-import sys, string, csv, os, fnmatch, datetime, subprocess
+import sys, string, csv, os, fnmatch, datetime, subprocess, colorama
 
 #########################################
 # TIME
@@ -9,6 +9,7 @@ import sys, string, csv, os, fnmatch, datetime, subprocess
 class Timer:
   def __init__(self, total = -1, print_interval = 20000):
     # print_interval is in units of microseconds
+    colorama.init()
     self.times = [datetime.datetime.now()]
     self.num = 0
     self.last_print = 0
@@ -30,7 +31,7 @@ class Timer:
 
     if passed_print_interval or is_done:
       if self.last_print != 0:
-        sys.stdout.write("\033[F\033[F\033[F\033[F\033[F")
+        sys.stdout.write("\033[A\033[A\033[A\033[A\033[A")
       self.last_print = datetime.datetime.now()
       if self.total != -1:
         print('\n\t\tPROGRESS %:', '{:5.2f}'.format(float(self.num * 100) / float(self.total)), ' : ', self.num, '/', self.total)
@@ -75,7 +76,7 @@ class Timer:
     bar += '\x1b[6;30;42m'
     for i in range(pct):
       bar += 'X'
-    bar += '\x1b[0m'      
+    bar += '\x1b[0m'
     for i in range(RESOLUTION - pct):
       bar += '-'
     bar += ']'
