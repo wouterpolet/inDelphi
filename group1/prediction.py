@@ -5,6 +5,8 @@ import autograd.numpy as np
 from scipy.stats import entropy
 from collections import defaultdict
 
+import util
+
 DELETION_LEN_LIMIT = 28
 
 
@@ -219,9 +221,11 @@ def predict_all(seq, cutsite):
 def predict_sequence_outcome(gene_data):
   d = defaultdict(list)
   size = len(gene_data)
+  timer = util.Timer(total=size)
+
   for index, row in gene_data.iterrows():
-    if index % 100000 == 0:
-      print(f'Predicted {index} out of {size} sequences')
+    # if index % 100000 == 0:
+    #   print(f'Predicted {index} out of {size} sequences')
 
     seq = row['target']
     chromosome = row['Chromosome']
@@ -343,6 +347,7 @@ def predict_sequence_outcome(gene_data):
     highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])  # pred freq for most freq MH-based del genotype
     d['Highest Ins Rate'].append(highest_ins_rate)
     d['Highest Del Rate'].append(highest_del_rate)
+    timer.update()
   return pd.DataFrame(d)
 
 
@@ -514,11 +519,13 @@ def bulk_predict(seq, d):
 def bulk_predict_all(lib_df):
   res = []
   size = len(lib_df)
+  timer = util.Timer(total=size)
 
   for i, seq in enumerate(lib_df):
-    if i % 10 == 0:
-      print(f'Predicted {i} out of {size} sequences')
+    # if i % 10 == 0:
+    #   print(f'Predicted {i} out of {size} sequences')
     res.append(bulk_predict(seq, {}))
+    timer.update()
   return res
 
 
