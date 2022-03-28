@@ -25,6 +25,29 @@ def initialize_model():
   return seed, nn_layer_sizes, nn2_layer_sizes
 
 
+def del_subset(all_data):
+  return all_data[all_data['Type'] == 'DELETION'].reset_index()
+
+
+# TODO see if any code can use this function (get microhomology) - reduce redundancy
+def mh_del_subset(all_data):
+  deletions = del_subset(all_data)
+  return deletions, deletions[deletions['homologyLength'] != 0]
+
+
+def ins_subset(data):
+  return data[(data['Type'] == 'INSERTION') & (data['Indel'].str.startswith('1+'))]
+
+
+def normalize_count(data):
+  # Normalize Counts
+  total_count = sum(data['countEvents'])
+  if total_count == 0:
+    return None
+  data['countEvents'] = data['countEvents'].div(total_count)
+  return data
+
+
 def parse_data(all_data):
   """
   Transform the data provided to us (U2OS.pkl or dataset.pkl)
@@ -38,15 +61,15 @@ def parse_data(all_data):
     freqs    : countEvents
     dl_freqs : DL frequencies for all del len (1:28)
   """
-  deletions = all_data[all_data['Type'] == 'DELETION']
-  deletions = deletions.reset_index()
-
+  # deletions = all_data[all_data['Type'] == 'DELETION']
+  # deletions = deletions.reset_index()
   # A single value GRNA -Train until 1871
-  exps = deletions['Sample_Name'].unique()
+
   # Q & A: How to determine if a deletion is MH or MH-less - length != 0
   # Question: Do we need to distinguish between MH and MH-less, if yes, how to pass diff del_len to MH-less NN
-
-  microhomologies = deletions[deletions['homologyLength'] != 0]
+  deletions, microhomologies = mh_del_subset(all_data)
+  exps = deletions['Sample_Name'].unique()
+  # microhomologies = deletions[deletions['homologyLength'] != 0]
   # mh_less = deletions[deletions['homologyLength'] == 0]
   mh_lens, gc_fracs, del_lens, freqs, dl_freqs = [], [], [], [], []
   for id, exp in enumerate(exps):
@@ -313,6 +336,20 @@ def adam_minmin(grad_both, init_params_nn, init_params_nn2, callback=None, num_i
   return unflatten_nn(x_nn), unflatten_nn2(x_nn2)
 
 
+def format_data(exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs):
+  INP = []
+  for mhl, gcf in zip(mh_lens, gc_fracs):
+    inp_point = np.array([mhl, gcf]).T  # N * 2
+    INP.append(inp_point)
+  INP = np.array(INP)  # 2000 * N * 2
+  # Neural network considers each N * 2 input, transforming it into N * 1 output.
+  OBS = np.array(freqs)
+  OBS2 = np.array(dl_freqs)
+  NAMES = np.array([str(s) for s in exps])
+  DEL_LENS = np.array(del_lens)
+  return INP, OBS, OBS2, NAMES, DEL_LENS
+
+
 def create_neural_networks(merged, log, out_directory, exec_id):
   """
   Create and Train the Nueral Networks (Microhomology and microhomology less networks)
@@ -341,17 +378,8 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(merged)
 
   helper.print_and_log("Parsing data...", log_fn)
-  INP = []
-  for mhl, gcf in zip(mh_lens, gc_fracs):
-    inp_point = np.array([mhl, gcf]).T  # N * 2
-    INP.append(inp_point)
-  INP = np.array(INP)  # 2000 * N * 2
-  # Neural network considers each N * 2 input, transforming it into N * 1 output.
-  OBS = np.array(freqs)
-  OBS2 = np.array(dl_freqs)
   global NAMES
-  NAMES = np.array([str(s) for s in exps])
-  DEL_LENS = np.array(del_lens)
+  INP, OBS, OBS2, NAMES, DEL_LENS = format_data(exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs)
 
   helper.print_and_log("Training model...", log_fn)
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
@@ -364,6 +392,9 @@ def create_neural_networks(merged, log, out_directory, exec_id):
 
   # Jon - Research Question - Start
   jrq.save_statistics(out_dir, pd.DataFrame(execution_statistics))
+  #
+  # tr1_rsq, tr2_rsq = helper.rsq(trained_params[0], trained_params[1], INP, OBS, OBS2, DEL_LENS)
+  # jrq.save_rsqs(out_dir, tr1_rsq, rsq)
   # Jon - Research Question - End
   return trained_params
 

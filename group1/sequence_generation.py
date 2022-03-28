@@ -6,15 +6,15 @@ import helper
 import pandas as pd
 
 
-def load_sequences_from_cutsites(inp_fn, new_targets):
-  pkl_file = os.path.dirname(inp_fn) + '/cutsites_1M.pkl'
+def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
+  pkl_file = os.path.dirname(inp_fn) + f'/cutsites_{sample_size}.pkl'
   if os.path.exists(pkl_file) and not new_targets:
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
   else:
     all_cutsites = load_genes_cutsites(inp_fn)
     # TODO - check with team, do we allow replicated elements or only unique?
-    cutsites = all_cutsites.sample(n=1003524).reset_index(drop=True)
+    cutsites = all_cutsites.sample(n=sample_size).reset_index(drop=True)
     with open(pkl_file, 'wb') as f:
       pickle.dump(cutsites, f)
   cutsites['Location'] = cutsites['Location'].astype('int32')
