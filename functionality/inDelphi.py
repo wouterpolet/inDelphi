@@ -83,19 +83,19 @@ def calculate_predictions(data, models, in_del, new_targets=False):
   @return: dataframe with prediction per sample
   """
   # Getting the cutsites for human gene (approx 226,000,000)
+
   if in_del:
     print_and_log("Predicting Sequence Outcomes...", log_fn)
-    predictions = pred.predict_data_outcomes(data, models, in_del)
     predictions_file = 'in_del_distribution_mesc.pkl'
     if os.path.exists(predictions_file):
       predictions_file = 'in_del_distribution_u2os.pkl'
   else:
     print_and_log("Loading Gene Cutsites...", log_fn)
-    gene_data = load_sequences_from_cutsites(data, new_targets)
-    # Calculating outcome using our models - only calculate approx 1,000,000
+    data = load_sequences_from_cutsites(data, new_targets, sample_size=1003524)
     print_and_log("Predicting Sequence Outcomes...", log_fn)
-    predictions = pred.predict_data_outcomes(gene_data, models, in_del)
     predictions_file = 'freq_distribution.pkl'
+
+  predictions = pred.Prediction(30, 28, models, data)
 
   print_and_log("Storing Predictions...", log_fn)
   helper.store_predictions(out_dir, predictions_file, predictions)
