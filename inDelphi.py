@@ -2,24 +2,22 @@ import argparse
 import os
 import pickle
 import warnings
-from collections import defaultdict
 
 import autograd.numpy as np
 import pandas as pd
 from pandas.core.common import SettingWithCopyWarning
 
-import helper
-from author_helper import print_and_log
-import ins_network as knn
-import neural_networks as nn
-import figure_generation
-import prediction as pred
-from sequence_generation import load_sequences_from_cutsites
+from functionality import helper
+from functionality import figure_generation
+from functionality.author_helper import print_and_log
+import functionality.ins_network as knn
+import functionality.neural_networks as nn
+import functionality.prediction as pred
+from functionality.sequence_generation import load_sequences_from_cutsites
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
-
 
 EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 DELETION_LEN_LIMIT = 30
@@ -61,14 +59,16 @@ def model_creation(data, model_type):
   '''
   out_folder = out_dir + model_type
   print_and_log("Training Neural Networks...", log_fn)
-  nn_params, nn2_params = nn.create_neural_networks(data, log_fn, out_folder, exec_id)
+  deletion_model = nn.DeletionModel(log_fn, out_folder, exec_id)
+  nn_params, nn2_params = deletion_model.create_neural_networks(data)
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
   '''
   print_and_log("Training KNN...", log_fn)
   total_values = helper.load_total_phi_delfreq(out_folder)
-  rate_model, bp_model, normalizer = knn.train_knn(data, total_values, out_folder, out_folder + FOLDER_STAT_KEY)
+  insertion_model = knn.InsertionModel(out_folder, out_folder + helper.FOLDER_STAT_KEY)
+  rate_model, bp_model, normalizer = insertion_model.train_knn(data, total_values)
   model = {'nn': nn_params, 'nn_2': nn2_params, 'rate': rate_model, 'bp': bp_model, 'norm': normalizer}
   return model
 
@@ -95,7 +95,8 @@ def calculate_predictions(data, models, in_del, new_targets=False):
     print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions_file = 'freq_distribution.pkl'
 
-  predictions = pred.Prediction(30, 28, models, data)
+  preds = pred.Prediction(30, 28, models)
+  predictions = preds.predict_all_sequence_outcomes(data)
 
   print_and_log("Storing Predictions...", log_fn)
   helper.store_predictions(out_dir, predictions_file, predictions)
@@ -142,21 +143,21 @@ def calculate_figure_3(train_model, load_prediction, new_targets):
   if fig3_predictions is None:
     if train_model:  # Training model
       print_and_log("Loading data...", log_fn)
-      all_data_mesc = pd.concat(helper.read_data(input_dir + 'dataset.pkl'), axis=1).reset_index()
+      all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
       models_3 = model_creation(all_data_mesc, 'fig_3/')
     else:  # Loading model
       model_folder = out_dir + 'fig_3/'
       print_and_log("Loading models...", log_fn)
       models_3 = helper.load_models(model_folder)
     # Making predictions from model
-    fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, in_del=False, new_targets=new_targets)
+    fig3_predictions = calculate_predictions(helper.INPUT_DIRECTORY + 'genes/mart_export.txt', models_3, in_del=False, new_targets=new_targets)
 
   print_and_log("Plotting Figure...", log_fn)
   figure_generation.figure_3(fig3_predictions)
   return
 
 
-# TODO fix entire function
+# TODO fix entire function - cleanup
 def calculate_figure_4(train_model, load_prediction):
   """
   Supprocess to train/load models, data, predict and plot figure 4b
@@ -165,12 +166,12 @@ def calculate_figure_4(train_model, load_prediction):
   fig4a_predictions = None
   fig4b_predictions = None
 
-  train_mesc_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}train_mesc.pkl'
-  test_mesc_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}test_mesc.pkl'
-  train_u2os_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}train_u2os.pkl'
-  test_u2os_file = f'{out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY}test_u2os.pkl'
+  train_mesc_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}train_mesc.pkl'
+  test_mesc_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}test_mesc.pkl'
+  train_u2os_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}train_u2os.pkl'
+  test_u2os_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}test_u2os.pkl'
 
-  libA = load_lib_data(input_dir + 'libX/', 'libA')
+  libA = helper.load_lib_data(helper.INPUT_DIRECTORY + 'libX/', 'libA')
 
   # Loading predictions if specified & file exists
   if load_prediction:
@@ -180,7 +181,7 @@ def calculate_figure_4(train_model, load_prediction):
     test_mesc = helper.load_pickle(test_mesc_file)
     test_u2os = helper.load_pickle(test_u2os_file)
 
-    prediction_files = os.listdir(out_dir + FOLDER_PRED_KEY)
+    prediction_files = os.listdir(out_dir + helper.FOLDER_PRED_KEY)
     if len(prediction_files) == 3:
       mesc_file = ''
       u2os_file = ''
@@ -190,17 +191,17 @@ def calculate_figure_4(train_model, load_prediction):
         elif "u2os" in prediction_file:
           u2os_file = prediction_file
       if mesc_file != '' and u2os_file != '':
-        fig4a_predictions = helper.load_pickle(out_dir + FOLDER_PRED_KEY + mesc_file)
-        fig4b_predictions = helper.load_pickle(out_dir + FOLDER_PRED_KEY + u2os_file)
+        fig4a_predictions = helper.load_pickle(out_dir + helper.FOLDER_PRED_KEY + mesc_file)
+        fig4b_predictions = helper.load_pickle(out_dir + helper.FOLDER_PRED_KEY + u2os_file)
 
   print_and_log("Loading data...", log_fn)
   if fig4a_predictions is None or fig4b_predictions is None:
     # Loading Data
     if train_model:
-      all_data_mesc = pd.concat(helper.read_data(input_dir + 'dataset.pkl'), axis=1)
+      all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1)
       all_data_mesc = all_data_mesc.reset_index()
       print_and_log(f"mESC Loaded - Count(Items): {len(all_data_mesc)}", log_fn)
-      all_data_u2os = pd.concat(helper.read_data(input_dir + 'U2OS.pkl'), axis=1)
+      all_data_u2os = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'U2OS.pkl'), axis=1)
       all_data_u2os = all_data_u2os.reset_index()
       all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
 
@@ -242,11 +243,11 @@ def calculate_figure_4(train_model, load_prediction):
       test_mesc = helper.load_pickle(test_mesc_file)
       test_u2os = helper.load_pickle(test_u2os_file)
       print_and_log("Loading models...", log_fn)
-      models_4a = load_models(out_dir + 'fig_4mesc/')
-      models_4b = load_models(out_dir + 'fig_4u20s/')
+      models_4a = helper.load_models(out_dir + 'fig_4mesc/')
+      models_4b = helper.load_models(out_dir + 'fig_4u20s/')
 
-    test_mesc_targets = get_targets(libA, test_mesc)
-    test_u2os_targets = get_targets(libA, test_u2os)
+    test_mesc_targets = helper.get_targets(libA, test_mesc)
+    test_u2os_targets = helper.get_targets(libA, test_u2os)
     fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, in_del=True)
     fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, in_del=True)
 
@@ -260,7 +261,7 @@ def calculate_figure_4(train_model, load_prediction):
   pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
 
   print_and_log("Plotting Figure...", log_fn)
-  figure_generation.figure_4(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4b_' + exec_id)
+  figure_generation.figure_4(pearson_mESC, pearson_u2OS)
 
   return
 
@@ -276,19 +277,7 @@ if __name__ == '__main__':
   train_models, user_exec_id, load_prediction, execution_flow, new_targets = get_args(args)
 
   # Program Local Directories
-  out_directory, log_file, execution_id = helper.initialize_files_and_folders(user_exec_id)
-  global log_fn
-  log_fn = log_file
-  global out_dir
-  out_dir = out_directory
-  global exec_id
-  exec_id = execution_id
-  global input_dir
-  input_dir = EXECUTION_PATH + FOLDER_INPUT_KEY
-
-  out_nn_param_dir = out_dir + FOLDER_PARAM_KEY
-  out_stat_dir = out_dir + FOLDER_STAT_KEY
-  out_plot_dir = out_dir + FOLDER_GRAPH_KEY
+  out_dir, log_fn, exec_id = helper.initialize_files_and_folders(user_exec_id)
 
   if execution_flow == '3f':
     calculate_figure_3(train_models, load_prediction, new_targets)

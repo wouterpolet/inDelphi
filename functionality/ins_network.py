@@ -4,8 +4,8 @@ import pandas as pd
 import autograd.numpy as np
 from collections import defaultdict
 from sklearn.neighbors import KNeighborsRegressor
-from helper import convert_oh_string_to_nparray
-from author_helper import ensure_dir_exists, Timer
+from functionality.helper import convert_oh_string_to_nparray
+from functionality.author_helper import ensure_dir_exists, Timer
 
 
 class InsertionModel:
@@ -13,13 +13,9 @@ class InsertionModel:
     self.out_dir_model = model_dir
     self.out_dir_stat = stat_dir
 
-  def get_statistics(self, data_nm, total_values, stat_dir=''):
-    if stat_dir == '':
-      ins_stat_dir = self.out_dir_stat + 'ins_stat.csv'
-      bp_stat_dir = self.out_dir_stat + 'bp_stat.csv'
-    else:
-      ins_stat_dir = stat_dir + 'ins_stat.csv'
-      bp_stat_dir = stat_dir + 'bp_stat.csv'
+  def get_statistics(self, data_nm, total_values):
+    ins_stat_dir = self.out_dir_stat + 'ins_stat.csv'
+    bp_stat_dir = self.out_dir_stat + 'bp_stat.csv'
 
     if os.path.isfile(ins_stat_dir) and os.path.isfile(bp_stat_dir):
       print('Loading statistics...')

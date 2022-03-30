@@ -1,9 +1,9 @@
 import os
-import helper
-import util
+import functionality.helper as helper
+import functionality.author_helper as util
 import pickle
-from prediction import predict_data_outcomes
-from sequence_generation import load_sequences_from_cutsites
+import functionality.prediction as pred
+from functionality.sequence_generation import load_sequences_from_cutsites
 
 FOLDER_STAT_KEY = 'statistics/'
 FOLDER_PARAM_KEY = 'parameters/'
@@ -23,7 +23,8 @@ def save_statistics(out_dir, statistics):
 
 def calculate_predictions(data, models, new_targets=False, sample_size=1003524):
   gene_data = load_sequences_from_cutsites(data, new_targets, sample_size)
-  predictions = predict_data_outcomes(gene_data, models, False)
+  preds = pred.Prediction(30, 28, models)
+  predictions = preds.predict_all_sequence_outcomes(gene_data)
   return predictions
 
 

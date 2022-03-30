@@ -3,8 +3,8 @@ import glob
 import pickle
 import datetime
 import pandas as pd
-import author_helper as ah
 import autograd.numpy as np
+import functionality.author_helper as ah
 
 FOLDER_STAT_KEY = 'statistics/'
 FOLDER_PARAM_KEY = 'parameters/'
@@ -17,6 +17,8 @@ RATE_MODEL_NAME = 'rate_model.pkl'
 BP_MODEL_NAME = 'bp_model.pkl'
 NORMALIZER_NAME = 'Normalizer.pkl'
 
+EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
+INPUT_DIRECTORY = EXECUTION_PATH + FOLDER_INPUT_KEY
 
 def load_pickle(file):
   return pickle.load(open(file, 'rb'))
@@ -101,30 +103,21 @@ def load_lib_data(folder_dir, libX):
   return all_data
 
 
-def get_targets(libX, data, with_grna=False):
+def get_targets(libX, data):
   """
   get full target(s) using the sample name from our dataset using the LibA/LibB grnas
-  @rtype: dictionary/list of all sequences
+  @rtype: dictionary of all sequences
   """
-  if with_grna:
-    result = {}
-  else:
-    result = []
+  result = {}
   for sampleName in data['Sample_Name'].unique():
     grna = sampleName.split('_')
     grna = grna[len(grna) - 1]
     sequences = libX.loc[libX['target'].str.contains(grna, case=False)]['target']
     if len(sequences) == 1:
-      if with_grna:
-        result[grna] = [sequences.values[0]]
-      else:
-        result.append(sequences.values[0])
+      result[grna] = [sequences.values[0]]
     else:
       all_seqs = [seq for seq in sequences if seq.index(grna) == 10]
-      if with_grna:
-        result[grna] = all_seqs
-      else:
-        result.extend(all_seqs)
+      result[grna] = all_seqs
   return result
 
 

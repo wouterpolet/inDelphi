@@ -1,11 +1,10 @@
 import copy
-import helper
 import pandas as pd
 import autograd.numpy as np
 from scipy.stats import entropy
 from collections import defaultdict
 
-from author_helper import Timer, find_microhomologies, get_gc_frac, nn_match_score_function
+from functionality.author_helper import Timer, find_microhomologies, get_gc_frac, nn_match_score_function
 
 
 def get_indel_len_pred(pred_all_df, del_len_limit=61):
@@ -99,7 +98,7 @@ def get_pearson_pred_obs(prediction, observation, del_len_limit=61):
 
 
 class Prediction:
-  def __init__(self, del_limit, dl_limit, models, data):
+  def __init__(self, del_limit, dl_limit, models):
     # TODO check if we need both or just one?
     self.deletion_len_limit = del_limit + 1
     self.dl_limit = dl_limit + 1

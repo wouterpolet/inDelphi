@@ -2,9 +2,8 @@ import os
 import re
 import glob
 import pickle
-import helper
 import pandas as pd
-
+import functionality.helper as helper
 
 # TODO Comment and clean
 
