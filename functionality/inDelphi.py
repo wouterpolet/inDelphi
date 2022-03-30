@@ -12,10 +12,8 @@ import helper
 from author_helper import print_and_log
 import ins_network as knn
 import neural_networks as nn
-import plot_3f as plt_3
-import plot_4b as plt_4
+import figure_generation
 import prediction as pred
-import util as util
 from sequence_generation import load_sequences_from_cutsites
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -154,7 +152,7 @@ def calculate_figure_3(train_model, load_prediction, new_targets):
     fig3_predictions = calculate_predictions(input_dir + 'genes/mart_export.txt', models_3, in_del=False, new_targets=new_targets)
 
   print_and_log("Plotting Figure...", log_fn)
-  plt_3.hist(fig3_predictions)
+  figure_generation.figure_3(fig3_predictions)
   return
 
 
@@ -262,7 +260,7 @@ def calculate_figure_4(train_model, load_prediction):
   pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
 
   print_and_log("Plotting Figure...", log_fn)
-  plt_4.box_voilin(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4b_' + exec_id)
+  figure_generation.figure_4(pearson_mESC, pearson_u2OS, out_dir + FOLDER_GRAPH_KEY + 'plot_4b_' + exec_id)
 
   return
 

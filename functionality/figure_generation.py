@@ -5,7 +5,7 @@ import statistics as stat
 import matplotlib.pyplot as plt
 
 
-def hist(predictions):
+def figure_3(predictions):
   """
   Generate Figure 3f - Deletion and Length Distributions
   @rtype: object
@@ -65,7 +65,7 @@ def hist(predictions):
 # seaborn zorder?” Aug 2021, last accessed 18 March 2022. [Online].
 # Available: https://stackoverflow.com/questions/68614447/
 # how-to-display-boxplot-in-front-of-violinplot-in-seaborn-seaborn-zorder
-def box_voilin(corr_gentyp_mESC, corr_gentyp_U2OS):
+def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS):
     """
     Generate Figure 4b - Indel length predictions box plots
     For mESCs and U2OS

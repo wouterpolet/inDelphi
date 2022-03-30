@@ -110,6 +110,7 @@ def parse_data(all_data):
 
 
 class DeletionModel:
+  # TODO change these params
   def __init__(self, model_dir, stat_dir):
     self.out_dir_model = model_dir
     self.out_dir_stat = stat_dir
