@@ -59,8 +59,7 @@ def model_creation(data, model_type):
   '''
   out_folder = out_dir + model_type
   print_and_log("Training Neural Networks...", log_fn)
-  deletion_model = nn.DeletionModel(log_fn, out_folder, exec_id)
-  nn_params, nn2_params = deletion_model.create_neural_networks(data)
+  nn_params, nn2_params = nn.create_neural_networks(data, log_fn, out_folder, exec_id)
   '''
   KNN - 1 bp insertions
   Model Creation, Training & Optimization
@@ -89,6 +88,11 @@ def calculate_predictions(data, models, in_del, new_targets=False):
     predictions_file = 'in_del_distribution_mesc.pkl'
     if os.path.exists(predictions_file):
       predictions_file = 'in_del_distribution_u2os.pkl'
+      # TODO fix here - ensure that both inputs have similar structures
+      #  currently - indel = Dict of list and
+      #               freq = dataframe
+
+
   else:
     print_and_log("Loading Gene Cutsites...", log_fn)
     data = load_sequences_from_cutsites(data, new_targets, sample_size=1003524)
