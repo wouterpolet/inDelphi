@@ -5,6 +5,7 @@ import pickle
 import helper
 import pandas as pd
 
+BATCH_SIZE = 20000000
 
 def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
   pkl_file = os.path.dirname(inp_fn) + f'/cutsites_{sample_size}.pkl'
@@ -22,37 +23,53 @@ def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
 
 
 def load_genes_cutsites(inp_fn):
-  pkl_file = os.path.dirname(inp_fn) + '/cutsites.pkl'
+  batches = 0
+  curr_seq_count = 0
+  processed = 0
+
+  pkl_file = inp_fn + '_cutsites.pkl'
   if os.path.exists(pkl_file):
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
     return cutsites
 
-  all_lines = open(inp_fn, "r").readlines()
-  sequence, chrom = '', ''
-  data, cutsites = [], []
-  for line in all_lines:
-    if '>' in line:
-      if sequence != '':
-        data.append([chrom, sequence])
-        if len(data) % 100 == 0:
-          print('Working on: ', len(data))
-        cutsites.extend(get_cutsites(chrom, sequence))
-      chrom = line.strip().split('|')[3]
-      sequence = ''
-    else:
-      sequence += line.strip()
+  with open(inp_fn, "r") as f:
+    sequence, chrom = '', ''
+    cutsites = []
+    for line in f:
+      if '>' in line:
+        if sequence != '':
+          processed += 1
+          if processed % 100 == 0:
+            print('Working on: ', processed)
+          curr_cutsites = get_cutsites(chrom, sequence)
+          cutsites.extend(curr_cutsites)
+          curr_seq_count += len(curr_cutsites)
+        chrom = line.strip().split(' ')[0]
+        sequence = ''
+        if curr_seq_count >= BATCH_SIZE:
+          batch_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome'])
+          pkl_file_batch = f'{inp_fn}_cutsites_{batches}.pkl'
+          with open(pkl_file_batch, 'wb') as w_f:
+            pickle.dump(batch_data, w_f)
+          curr_seq_count = 0
+          cutsites = []
+          print(f'Saved batch {batches}')
+          batches += 1
+      else:
+        sequence += line.strip()
 
-  data.append([chrom, sequence]) # Adding last item
-  print('Last item inserted: ', len(data))
-  cutsites.extend(get_cutsites(chrom, sequence))
+    processed += 1 # Adding last item
+    print('Last item inserted: ', processed)
+    cutsites.extend(get_cutsites(chrom, sequence))
 
-  print('Storing to file')
-  all_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome', 'Location', 'Orientation'])
-  with open(pkl_file, 'wb') as f:
-    pickle.dump(all_data, f)
-  print('Gene cutsite complete')
-  return cutsites
+    print('Storing to file')
+    all_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome'])
+    pkl_file_batch = f'{inp_fn}_cutsites_{batches}.pkl'
+    with open(pkl_file_batch, 'wb') as w_f:
+      pickle.dump(all_data, w_f)
+    print('Gene cutsite complete')
+    return cutsites
 
 
 def get_cutsites(chrom, sequence):
@@ -120,3 +137,10 @@ def find_cutsites_and_predict(inp_fn, use_file=''):
 
   # maybe_flush(dd, dd_shuffled, data_nm, split, num_flushed, force = True)   # will flush due to forced flushing
   return
+
+
+# Run for exons and introns database
+if __name__ == '__main__':
+  # inp_file = os.path.dirname(__file__) + '/../in/exons'
+  inp_file = os.path.dirname(__file__) + '/../in/introns'
+  load_genes_cutsites(inp_file)
