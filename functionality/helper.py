@@ -71,7 +71,7 @@ def initialize_files_and_folders(user_exec_id):
   ah.ensure_dir_exists(out_dir + FOLDER_PRED_KEY)
   ah.ensure_dir_exists(out_dir + FOLDER_GRAPH_KEY)
   ah.ensure_dir_exists(out_dir + FOLDER_PRED_KEY + FOLDER_PARAM_KEY)
-  ah.ensure_dir_exists(out_dir + FOLDER_PARAM_KEY + FOLDER_STAT_KEY)
+  # ah.ensure_dir_exists(out_dir + FOLDER_PARAM_KEY + FOLDER_STAT_KEY)
   ah.ensure_dir_exists(out_dir + FOLDER_LOG_KEY)
 
   log_fn = out_dir + FOLDER_LOG_KEY + '_log_%s.out' % datetime.datetime.now().strftime("%Y%m%d_%H%M")
