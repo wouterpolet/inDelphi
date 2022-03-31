@@ -86,6 +86,7 @@ def predict(sequences, models):
         s = np.array(s) / sum(s)  # renormalised freq distrib of MH dels and 1-bp ins TODO: extract
 
         predictions.append((seq, indel_len_pred, s))
+        timer.update()
     return predictions
 
 out_directory, log_file, execution_id = initialize_files_and_folders('')
@@ -112,7 +113,7 @@ extra_samples_at_end = total_samples - (samples_per_batch * len(batches))
 
 predictions = []
 for batch in batches:
-    print(f'Starting on batch {batch}')
+    helper.print_and_log(f'Starting on batch {batch}', log_fn)
     all_cutsites = load_pickle(batch)['Chromosome'].to_numpy()  # using chromosome because I messed up the saving
     if batch == batches[0]:
         cutsites = all_cutsites[np.random.choice(len(all_cutsites), size=(samples_per_batch + extra_samples_at_end), replace=False)]
