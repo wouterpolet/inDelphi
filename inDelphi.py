@@ -88,18 +88,15 @@ def calculate_predictions(data, models, in_del, new_targets=False):
     predictions_file = 'in_del_distribution_mesc.pkl'
     if os.path.exists(predictions_file):
       predictions_file = 'in_del_distribution_u2os.pkl'
-      # TODO fix here - ensure that both inputs have similar structures
-      #  currently - indel = Dict of list and
-      #               freq = dataframe
-
-
+    data = pd.DataFrame(data).T
+    data = data.rename(columns={0: "target"})
   else:
     print_and_log("Loading Gene Cutsites...", log_fn)
     data = load_sequences_from_cutsites(data, new_targets, sample_size=1003524)
     print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions_file = 'freq_distribution.pkl'
 
-  preds = pred.Prediction(30, 28, models)
+  preds = pred.Prediction(DELETION_LEN_LIMIT, 28, models)
   predictions = preds.predict_all_sequence_outcomes(data)
 
   print_and_log("Storing Predictions...", log_fn)
@@ -261,8 +258,8 @@ def calculate_figure_4(train_model, load_prediction):
   fig4b_observations = get_observed_values(test_u2os)
 
   print_and_log("Calculating Pearson Correlation...", log_fn)
-  pearson_mESC = pred.get_pearson_pred_obs(fig4a_predictions, fig4a_observations)
-  pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations)
+  pearson_mESC = pred.get_pearson_pred_obs(fig4a_predictions, fig4a_observations, del_len_limit=DELETION_LEN_LIMIT)
+  pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations, del_len_limit=DELETION_LEN_LIMIT)
 
   print_and_log("Plotting Figure...", log_fn)
   figure_generation.figure_4(pearson_mESC, pearson_u2OS)

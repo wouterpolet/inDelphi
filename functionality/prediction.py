@@ -75,11 +75,11 @@ def featurize(seq, cutsite, del_len_limit=61):
 def get_pearson_pred_obs(prediction, observation, del_len_limit=61):
   r_values = []
   pred_normalized_fq = []
-  for pred in prediction:
+  for index, pred in prediction.iterrows():
     current_pred_normalized_fq = []
     for i in range(1, -del_len_limit, -1):
       if i != 0:
-        current_pred_normalized_fq.append(pred[1][i])
+        current_pred_normalized_fq.append(pred['Indel Length Prediction'][i])
     pred_normalized_fq.append(current_pred_normalized_fq)
 
   for idx, key in enumerate(observation.keys()):
@@ -272,22 +272,23 @@ class Prediction:
     all_data = defaultdict(list)
     size = len(gene_data)
     timer = Timer(total=size)
+    has_orientation = 'Orientation' in gene_data.columns
 
     for index, row in gene_data.iterrows():
       seq = row['target']
-      orientation = row['Orientation']
-
       local_cutsite = 30
       grna = seq[13:33]
 
       # the SpCas9 gRNAs targeting exons and introns
       all_data['Sequence Context'].append(seq)
       all_data['Local Cutsite'].append(local_cutsite)
-      all_data['Orientation'].append(orientation)
+      if has_orientation:
+        orientation = row['Orientation']
+        all_data['Orientation'].append(orientation)
       all_data['Cas9 gRNA'].append(grna)
 
       # Make predictions for each SpCas9 gRNA targeting exons and introns
-      ans = self.predict_sequence(seq, local_cutsite, self.nn_params, self.nn2_params, self.rate_model, self.bp_model, self.normalizer)  # trained k-nn, bp summary dict, normalizer
+      ans = self.predict_sequence(seq, local_cutsite)  # trained k-nn, bp summary dict, normalizer
       # predict all receives seq_context = the gRNA sequence and local_cutsite = the -3 base index
       # pred_del_df = df of predicted unique del products             for sequence context and cutsite
       # pred_all_df = df of all predicted unique in+del products          ^

@@ -218,7 +218,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
   param_scale = 0.1
   # num_epochs = 7*200 + 1
   global num_epochs
-  num_epochs = 11
+  num_epochs = 51
 
   step_size = 0.10
   init_nn_params = init_random_params(param_scale, nn_layer_sizes, rs=seed)
