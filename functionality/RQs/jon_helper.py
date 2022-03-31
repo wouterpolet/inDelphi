@@ -21,7 +21,7 @@ def save_statistics(out_dir, statistics):
   return
 
 
-def calculate_predictions(data, models, new_targets=False, sample_size=1003524):
+def calculate_predictions(data, models, new_targets=False, sample_size=helper.SAMPLE_SIZE):
   gene_data = load_sequences_from_cutsites(data, new_targets, sample_size)
   preds = pred.Prediction(30, 28, models)
   predictions = preds.predict_all_sequence_outcomes(gene_data)

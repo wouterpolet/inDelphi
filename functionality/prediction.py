@@ -1,9 +1,12 @@
 import copy
+import glob
+
 import pandas as pd
 import autograd.numpy as np
 from scipy.stats import entropy
 from collections import defaultdict
 
+import functionality.helper as helper
 from functionality.author_helper import Timer, find_microhomologies, get_gc_frac, nn_match_score_function
 
 
@@ -362,3 +365,22 @@ class Prediction:
       all_data['Highest Del Rate'].append(highest_del_rate)
       timer.update()
     return pd.DataFrame(all_data)
+
+  def predict_using_batches(self, out_dir):
+    batches = glob.glob(helper.INPUT_DIRECTORY + "introns_*") + glob.glob(helper.INPUT_DIRECTORY + "exons_*")
+    total_samples = helper.SAMPLE_SIZE
+    samples_per_batch = int(total_samples / len(batches))
+    extra_samples_at_end = total_samples - (samples_per_batch * len(batches))
+
+    for batch in batches:
+      all_cutsites = helper.load_pickle(batch)['Chromosome'].to_numpy()
+      if batch == batches[0]:
+        cutsites = all_cutsites[
+          np.random.choice(len(all_cutsites), size=(samples_per_batch + extra_samples_at_end), replace=False)]
+      else:
+        cutsites = all_cutsites[np.random.choice(len(all_cutsites), size=samples_per_batch, replace=False)]
+      predictions = self.predict_all_sequence_outcomes(cutsites)
+      file = f'freq_distribution_{batch.split("/")[-1]}.pkl'
+      helper.store_predictions(out_dir, file, predictions)
+
+    # TODO return all predictions to plot

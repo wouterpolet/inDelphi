@@ -19,6 +19,8 @@ NORMALIZER_NAME = 'Normalizer.pkl'
 
 EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 INPUT_DIRECTORY = EXECUTION_PATH + FOLDER_INPUT_KEY
+SAMPLE_SIZE = 1003524
+BATCH_SIZE = 20000000
 
 def load_pickle(file):
   return pickle.load(open(file, 'rb'))
