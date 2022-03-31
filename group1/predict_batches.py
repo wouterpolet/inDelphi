@@ -75,6 +75,7 @@ def predict(sequences, models):
     rate_model = models['rate']
     bp_model = models['bp']
     normalizer = models['norm']
+    predictions = []
     for seq in sequences:
         local_cutsite = 30
         ans = predict_all(seq, local_cutsite, nn_params, nn2_params, rate_model, bp_model, normalizer)  # trained k-nn, bp summary dict, normalizer
@@ -111,7 +112,6 @@ total_samples = 1003524
 samples_per_batch = int(total_samples / len(batches))
 extra_samples_at_end = total_samples - (samples_per_batch * len(batches))
 
-predictions = []
 for batch in batches:
     helper.print_and_log(f'Starting on batch {batch}', log_fn)
     all_cutsites = load_pickle(batch)['Chromosome'].to_numpy()  # using chromosome because I messed up the saving
@@ -119,6 +119,7 @@ for batch in batches:
         cutsites = all_cutsites[np.random.choice(len(all_cutsites), size=(samples_per_batch + extra_samples_at_end), replace=False)]
     else:
         cutsites = all_cutsites[np.random.choice(len(all_cutsites), size=samples_per_batch, replace=False)]
-    predictions.extend(predict(cutsites, models_3))
-predictions_file = f'{out_dir + FOLDER_PRED_KEY}freq_distribution.pkl'
-pickle.dump(predictions, open(predictions_file, 'wb'))
+    predictions = predict(cutsites, models_3)
+    predictions_file = f'{out_dir + FOLDER_PRED_KEY}freq_distribution_{batch.split("/")[-1]}.pkl'
+    pickle.dump(predictions, open(predictions_file, 'wb'))
+
