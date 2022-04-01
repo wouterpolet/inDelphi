@@ -1,4 +1,7 @@
 import pickle
+from collections import defaultdict
+
+import pandas as pd
 
 from all_func import load_models
 from group1.prediction import predict_all, get_indel_len_pred
@@ -68,6 +71,7 @@ def initialize_files_and_folders(user_exec_id):
 
 
 def predict(sequences, models):
+    all_data = defaultdict(list)
     size = len(sequences)
     timer = util.Timer(total=size)
     nn_params = models['nn']
@@ -75,20 +79,62 @@ def predict(sequences, models):
     rate_model = models['rate']
     bp_model = models['bp']
     normalizer = models['norm']
-    predictions = []
+
     for seq in sequences:
         local_cutsite = 30
+        grna = seq[13:33]
+        all_data['Sequence Context'].append(seq)
+        all_data['Local Cutsite'].append(local_cutsite)
+        all_data['Cas9 gRNA'].append(grna)
         ans = predict_all(seq, local_cutsite, nn_params, nn2_params, rate_model, bp_model, normalizer)  # trained k-nn, bp summary dict, normalizer
         pred_del_df, pred_all_df, total_phi_score, ins_del_ratio = ans
         indel_len_pred, fs = get_indel_len_pred(pred_all_df, 60 + 1)
+        all_data['Indel Length Prediction'].append(indel_len_pred)
+        all_data['Total Phi Score'].append(total_phi_score)
+        all_data['1ins/del Ratio'].append(ins_del_ratio)
 
-        crit = (pred_all_df['Genotype Position'] != 'e')  # i.e. get only MH-based deletion and 1-bp ins genotypes
-        s = pred_all_df[crit]['Predicted_Frequency']
-        s = np.array(s) / sum(s)  # renormalised freq distrib of MH dels and 1-bp ins TODO: extract
+        all_data['Frameshift +0'].append(fs['+0'])
+        all_data['Frameshift +1'].append(fs['+1'])
+        all_data['Frameshift +2'].append(fs['+2'])
+        all_data['Frameshift'].append(fs['+1'] + fs['+2'])
 
-        predictions.append((seq, indel_len_pred, s))
+        # get only MH-based deletion genotypes
+        s = pred_del_df[pred_del_df['Genotype Position'] != 'e']['Predicted_Frequency']
+        s = np.array(s) / sum(s)  # renormalised freq distrib of only MH-based deletion genotypes
+        del_gt_precision = 1 - entropy(s) / np.log(len(s))
+        all_data['Precision - Del Genotype'].append(del_gt_precision)
+        dls = []
+        for del_len in range(1, 61):
+            dlkey = -1 * del_len
+            dls.append(indel_len_pred[dlkey])
+        dls = np.array(dls) / sum(dls)  # renormalised freq distrib of del lengths
+        del_len_precision = 1 - entropy(dls) / np.log(len(dls))
+        all_data['Precision - Del Length'].append(del_len_precision)
+
+        # i.e. get only MH-based deletion and 1-bp ins genotypes
+        s = pred_all_df[pred_all_df['Genotype Position'] != 'e']['Predicted_Frequency']
+        # renormalised freq distrib of MH dels and 1-bp ins
+        s = np.array(s) / sum(s)
+        all_gt_precision = 1 - entropy(s) / np.log(len(s))
+        all_data['Precision - All Genotype'].append(all_gt_precision)
+        all_data['Frequency Distribution'].append(s)
+
+        negthree_nt = seq[local_cutsite]  # local_cutsite = 30. I think -1 gives the -4 nt....?
+        negfour_nt = seq[local_cutsite - 1]
+        all_data['-4 nt'].append(negfour_nt)
+        all_data['-3 nt'].append(negthree_nt)
+
+        crit = (pred_all_df['Category'] == 'ins')
+        # pred freq for the most freq 1bp ins genotype
+        highest_ins_rate = max(pred_all_df[crit]['Predicted_Frequency'])
+        crit = (pred_all_df['Category'] == 'del') & (pred_all_df['Genotype Position'] != 'e')
+        # pred freq for most freq MH-based del genotype
+        highest_del_rate = max(pred_all_df[crit]['Predicted_Frequency'])
+        all_data['Highest Ins Rate'].append(highest_ins_rate)
+        all_data['Highest Del Rate'].append(highest_del_rate)
+
         timer.update()
-    return predictions
+    return pd.DataFrame(all_data)
 
 out_directory, log_file, execution_id = initialize_files_and_folders('')
 global log_fn
@@ -119,7 +165,9 @@ for batch in batches:
         cutsites = all_cutsites[np.random.choice(len(all_cutsites), size=(samples_per_batch + extra_samples_at_end), replace=False)]
     else:
         cutsites = all_cutsites[np.random.choice(len(all_cutsites), size=samples_per_batch, replace=False)]
+    helper.print_and_log(f'Sampled {len(cutsites)} cutsites', log_fn)
     predictions = predict(cutsites, models_3)
-    predictions_file = f'{out_dir + FOLDER_PRED_KEY}freq_distribution_{batch.split("/")[-1]}.pkl'
+    predictions_file = f'{out_dir + FOLDER_PRED_KEY}freq_distribution_{batch.split("/")[-1]}'
+    helper.print_and_log('Saving predictions', log_fn)
     pickle.dump(predictions, open(predictions_file, 'wb'))
 
