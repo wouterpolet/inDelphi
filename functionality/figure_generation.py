@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 import statistics as stat
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 from scipy import stats
 
 
@@ -18,16 +19,16 @@ def figure_3(predictions):
   print(bins_range)
 
   fix, (ax1, ax2) = plt.subplots(1, 2)
-  fix.suptitle('Predicted frequency among major editing products using mESC-trained inDelphi (%)', wrap=True)
+  fix.suptitle('Predicted frequency among major editing products\nusing mESC-trained inDelphi (%)', wrap=True)
   fig_3f_data_del = np.asarray(predictions['Highest Del Rate'])
 
   count, bins, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
   ax1.axhline(30, color='black')
-  ax1.annotate('Some Value', xy=(40000, 30), xycoords='data',
+  ax1.annotate("{:.1f}%".format(sum(count[31:])/sum(count) * 100), xy=(40000, 30), xycoords='data',
               xytext=(-10, 10), textcoords='offset points',
               horizontalalignment='left', verticalalignment='top')
   ax1.axhline(50, color='black')
-  ax1.annotate('Some Value', xy=(40000, 50), xycoords='data',
+  ax1.annotate("{:.1f}%".format(sum(count[51:])/sum(count) * 100), xy=(40000, 50), xycoords='data',
               xytext=(-10, 10), textcoords='offset points',
               horizontalalignment='left', verticalalignment='top')
   #data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
@@ -45,18 +46,18 @@ def figure_3(predictions):
   ax1.yaxis.tick_right()
   ax1.set_xlim(ax1.get_xlim()[::-1])
 
-  ax1.set_xlabel('Number of Cas9 gRNAs from libB')
+  # ax1.set_xlabel('Number of Cas9 gRNAs from libB')
 
   fig_3f_data_ins = np.asarray(predictions['Highest Ins Rate'])
   count, bins, patches = ax2.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
   #data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
   # count, bins, patches = ax2.hist(data, 100, orientation='horizontal')
   ax2.axhline(30, color='black')
-  ax2.annotate('Some Value', xy=(40000, 30), xycoords='data',
+  ax2.annotate("{:.1f}%".format(sum(count[31:])/sum(count) * 100), xy=(40000, 30), xycoords='data',
               xytext=(100, 10), textcoords='offset points',
               horizontalalignment='right', verticalalignment='top')
   ax2.axhline(50, color='black')
-  ax2.annotate('Some Value', xy=(40000, 50), xycoords='data',
+  ax2.annotate("{:.1f}%".format(sum(count[51:])/sum(count) * 100), xy=(40000, 50), xycoords='data',
               xytext=(100, 10), textcoords='offset points',
               horizontalalignment='right', verticalalignment='top')
 
@@ -73,8 +74,14 @@ def figure_3(predictions):
   ax2.yaxis.tick_left()
   ax2.set_yticklabels([])
 
-  ax2.set_xlabel('Number of Cas9 gRNAs from libB')
+  # ax2.set_xlabel('Number of Cas9 gRNAs from libB')
 
+  ax1.ticklabel_format(style='sci', axis='x', scilimits=(4, 4))
+  ax1.xaxis.get_offset_text().set_visible(False)
+
+  ax2.ticklabel_format(style='sci', axis='x', scilimits=(4, 4))
+  ax2.xaxis.get_offset_text().set_visible(False)
+  fix.text(0.5, 0.04, 'Number of Cas9 gRNAs from human exons and introns ($10^{4}$)', ha='center')
   plt.show()
 
   # sns.distplot(fig_3f_data_del, kde=True, label='Population')
