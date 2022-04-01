@@ -170,9 +170,11 @@ def store_predictions(out_dir, file, predictions):
 
 
 def load_predictions(out_dir):
-  files = os.listdir(out_dir + FOLDER_PRED_KEY)
+  # files = os.listdir(out_dir + FOLDER_PRED_KEY)
+  files = glob.glob(out_dir + FOLDER_PRED_KEY + '*.pkl')
   if len(files) == 1:
-    predictions = load_pickle(out_dir + FOLDER_PRED_KEY + files[0])
+    # predictions = load_pickle(out_dir + FOLDER_PRED_KEY + files[0])
+    predictions = load_pickle(files[0])
   return predictions
 
 

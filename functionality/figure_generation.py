@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 import statistics as stat
 import matplotlib.pyplot as plt
+from scipy import stats
 
 
 def figure_3(predictions):
@@ -21,6 +22,14 @@ def figure_3(predictions):
   fig_3f_data_del = np.asarray(predictions['Highest Del Rate'])
 
   count, bins, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  ax1.axhline(30, color='black')
+  ax1.annotate('Some Value', xy=(40000, 30), xycoords='data',
+              xytext=(-10, 10), textcoords='offset points',
+              horizontalalignment='left', verticalalignment='top')
+  ax1.axhline(50, color='black')
+  ax1.annotate('Some Value', xy=(40000, 50), xycoords='data',
+              xytext=(-10, 10), textcoords='offset points',
+              horizontalalignment='left', verticalalignment='top')
   #data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
   #count, bins, patches = ax1.hist(data, 100, orientation='horizontal')
   ax1.spines['left'].set_visible(False)
@@ -42,6 +51,15 @@ def figure_3(predictions):
   count, bins, patches = ax2.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal')
   #data = np.random.uniform(0, 1, 1000)  # You are generating 1000 points between 0 and 1.
   # count, bins, patches = ax2.hist(data, 100, orientation='horizontal')
+  ax2.axhline(30, color='black')
+  ax2.annotate('Some Value', xy=(40000, 30), xycoords='data',
+              xytext=(100, 10), textcoords='offset points',
+              horizontalalignment='right', verticalalignment='top')
+  ax2.axhline(50, color='black')
+  ax2.annotate('Some Value', xy=(40000, 50), xycoords='data',
+              xytext=(100, 10), textcoords='offset points',
+              horizontalalignment='right', verticalalignment='top')
+
   ax2.spines['right'].set_visible(False)
   ax2.spines['top'].set_visible(False)
 
@@ -58,6 +76,31 @@ def figure_3(predictions):
   ax2.set_xlabel('Number of Cas9 gRNAs from libB')
 
   plt.show()
+
+  # sns.distplot(fig_3f_data_del, kde=True, label='Population')
+  # plt.title('Population Distribution', fontsize=18)
+  # plt.ylabel('Frequency', fontsize=16)
+  #
+  # print(f'Population Mean: {np.mean(fig_3f_data_del):.3}')
+  # print(f'Population Std: {np.std(fig_3f_data_del):.3}')
+  # plt.show()
+  #
+
+  # density = stats.gaussian_kde(fig_3f_data_del, bw_method='silverman')
+  # count, x, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  # plt.plot(x, density(x))
+  # plt.show()
+  #
+  # density = stats.gaussian_kde(fig_3f_data_ins, bw_method='silverman')
+  # count, x, patches = ax1.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  # plt.plot(x, density(x))
+  # plt.show()
+
+
+
+#   We resampled each predicted value from a Gaussian centered at the predicted value with a specified standard deviation.
+#   Set the standard deviation as the predicted value divided by 4, up to a maximum of 3% for insertions
+#   while for deletions we used the predicted value divided by 4 with a minimum of 6%
 
 
 # Code source
