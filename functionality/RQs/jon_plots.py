@@ -1,29 +1,12 @@
 import os
-import argparse
 import pandas as pd
 import autograd.numpy as np
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from scipy.stats import linregress
-from scipy.stats import pearsonr
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.model_selection import learning_curve
-
-import helper
-from helper_jon import load_nn_statistics
-from ins_network import load_statistics, featurize
-from functionality.neural_networks import mh_del_subset, normalize_count, del_subset
-from all_func import initialize_files_and_folders, load_models, load_predictions, get_observed_values, load_lib_data, get_targets
-from prediction import predict_all
-
-FOLDER_STAT_KEY = 'statistics/'
-FOLDER_PARAM_KEY = 'parameters/'
-FOLDER_PRED_KEY = 'predictions/'
-FOLDER_INPUT_KEY = '/in/'
-EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 
 
 def plot_nn_loss_epoch(loss_values):
