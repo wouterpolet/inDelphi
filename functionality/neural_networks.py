@@ -8,7 +8,7 @@ from scipy.stats import entropy
 from sklearn.model_selection import train_test_split
 
 from functionality.author_helper import nn_match_score_function, init_random_params, rsq, print_and_log, alphabetize, save_parameters, exponential_decay, save_train_test_names, ensure_dir_exists
-import functionality.RQs.jon_helper as jrq
+import functionality.RQs.Jon.helper as jrq
 """
 Python file was not converted to class because of callback function and nested functions
 """
@@ -269,13 +269,13 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
     te1_rsq_mean = np.mean(te1_rsq)
     te2_rsq_mean = np.mean(te2_rsq)
 
-    out_line = ' %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (iter, train_loss, tr1_rsq_mean, tr2_rsq_mean, test_loss, te1_rsq_mean, te2_rsq_mean)
+    out_line = ' %s\t\t| %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (iter, seed, train_loss, tr1_rsq_mean, tr2_rsq_mean, test_loss, te1_rsq_mean, te2_rsq_mean)
     print_and_log(out_line, log_fn)
 
     # Jon - Research Question - Start
-    statistics = {'iteration': iter, 'train_loss': train_loss, 'train_rsq1': tr1_rsq_mean,
-                  'train_rsq2': tr2_rsq_mean, 'train_sample_size': train_size, 'test_loss': test_loss,
-                  'test_rsq1': te1_rsq_mean, 'test_rsq2': te2_rsq_mean, 'test_sample_size': test_size}
+    statistics = {'iteration': iter, 'seed':seed,
+                  'train_loss': train_loss, 'train_rsq1': tr1_rsq_mean, 'train_rsq2': tr2_rsq_mean, 'train_sample_size':train_size,
+                  'test_loss': test_loss, 'test_rsq1': te1_rsq_mean, 'test_rsq2': te2_rsq_mean, 'test_sample_size':test_size}
     statistics.update(loss_statistics)
     execution_statistics.append(statistics)
     # Jon - Research Question - End
@@ -376,7 +376,7 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   ans = train_test_split(INP, OBS, OBS2, NAMES, DEL_LENS, test_size=0.15, random_state=seed)
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
-  print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
+  print_and_log(" Iter\t| Seed\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   trained_params = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
   # get total phi scores and del frequencies for all of the data (not 85/15 split)
   main_objective(trained_params[0], trained_params[1], INP, OBS, OBS2, DEL_LENS, seed, store=True)
