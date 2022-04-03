@@ -1,20 +1,23 @@
-import os
 import argparse
 import pandas as pd
 import autograd.numpy as np
-from collections import defaultdict, Counter
+from collections import Counter
 
 from scipy.stats import pearsonr
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import learning_curve
 
-from inDelphi import get_observed_values
 from functionality.author_helper import print_and_log
-from functionality.RQs.jon_helper import load_nn_statistics
-from functionality.neural_networks import mh_del_subset, normalize_count, del_subset
-from functionality.prediction import predict_all, featurize
+from functionality.RQs.Jon.helper import load_nn_statistics
+# from functionality.neural_networks import mh_del_subset, normalize_count, del_subset
+from functionality.prediction import featurize
+
+import autograd.numpy.random as npr
+import functionality.RQs.Jon.plots as plt
 import functionality.helper as helper
-import jon_plots as plt
+import functionality.RQs.Jon.nn as nn
+import functionality.ins_network as knn
+
 
 def learning_curves(all_data, total_values):
   rate_stats, bp_stats = helper.load_statistics(all_data, total_values, model_folder + helper.FOLDER_STAT_KEY)
@@ -207,6 +210,34 @@ def get_pearson_pred_obs(prediction, observation):
   return r_values, t_values
 
 
+def load_and_plot_model_loss(model_folder):
+  loss_values = load_nn_statistics(model_folder)
+  plt.plot_nn_loss_epoch(loss_values)
+  return npr.RandomState(1) # TODO remove
+  return loss_values['seed'][0]
+
+
+def model_creation(data, model_type):
+  '''
+  Neural Network (MH)
+  Model Creation, Training & Optimization
+  '''
+  out_folder = out_dir + model_type
+  print_and_log("Training Neural Networks...", log_fn)
+  nn_params, nn2_params = nn.create_neural_networks(data, log_fn, out_folder, exec_id, seed_value)
+  '''
+  KNN - 1 bp insertions
+  Model Creation, Training & Optimization
+  '''
+  print_and_log("Training KNN...", log_fn)
+  total_values = helper.load_total_phi_delfreq(out_folder)
+  insertion_model = knn.InsertionModel(out_folder, out_folder + helper.FOLDER_STAT_KEY)
+  rate_model, bp_model, normalizer = insertion_model.train_knn(data, total_values)
+  model = {'nn': nn_params, 'nn_2': nn2_params, 'rate': rate_model, 'bp': bp_model, 'norm': normalizer}
+  return model
+
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Execution Details')
 
@@ -217,8 +248,8 @@ if __name__ == '__main__':
   else:
     raise Exception("Please specify --model_folder")
 
-  out_dir, log_fn, execution_id = helper.initialize_files_and_folders(user_exec_id)
-  if user_exec_id != execution_id:
+  out_dir, log_fn, exec_id = helper.initialize_files_and_folders(user_exec_id)
+  if user_exec_id != exec_id:
     raise Exception("Please specify a valid pre-trained model")
 
   print_and_log("Loading pre-trained networks...", log_fn)
@@ -231,46 +262,77 @@ if __name__ == '__main__':
   bp_model = models['bp']
   normalizer = models['norm']
 
-  loss_values = load_nn_statistics(model_folder)
-  print_and_log("Learning Curve for Neural Networks...", log_fn)
-  plt.plot_nn_loss_epoch(loss_values)
+  # Loading and plotting the current model loss values
+  print_and_log("Learning Curve for Current Neural Networks...", log_fn)
+  seed_value = load_and_plot_model_loss(model_folder)
 
-  mesc_file = ''
-  libA = helper.load_lib_data(helper.INPUT_DIRECTORY + 'libX/', 'libA')
-  train_mesc_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}train_mesc.pkl'
-  test_mesc_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}test_mesc.pkl'
-  prediction_files = os.listdir(out_dir + helper.FOLDER_PRED_KEY)
+  # Training a new model with alterations to the NN
+  print_and_log("Learning new Neural Network - Split...", log_fn)
 
-  for prediction_file in prediction_files:
-    if "mesc" in prediction_file:
-      mesc_file = prediction_file
-      break
-
-  if mesc_file != '':
-    predictions = helper.load_predictions(out_dir + helper.FOLDER_PRED_KEY + mesc_file)
-    test_mesc = helper.load_pickle(test_mesc_file)
-    # Get actual observations
-    observations = get_observed_values(test_mesc)
-  else:
-    raise Exception("Please retrain the model")
-
-  pred, obs, ins_only = get_predictions_and_observations(test_mesc, nn_params, nn2_params, rate_model, bp_model, normalizer)
-  insertion_pred_obs = pd.DataFrame(ins_only).T
-
-  pearson_co, t_values = get_pearson_pred_obs(pred, obs)
-  plt.plot_prediction_observation(insertion_pred_obs)
-  plt.plot_student_t_distribution(t_values)
-
-  # [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(test_mesc)
-  # INP, OBS, OBS2, NAMES, DEL_LENS = format_data(exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs)
-  # Predict unseen values
-  # rsq1, rsq2 = helper.rsq(nn_params, nn2_params, INP, OBS, OBS2, DEL_LENS, NAMES)
-  #
-  # plot_rsqs(rsq1, rsq2)
-
-  helper.print_and_log("Original Learning Curve for Insertion Model...", log_fn)
-  total_values = helper.load_pickle(model_folder + helper.FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
+  print_and_log("Loading data...", log_fn)
   all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
-  learning_curves(all_data_mesc, total_values)
+  models_3_max = model_creation(all_data_mesc, 'fig_3_max/')
+  models_3_split = model_creation(all_data_mesc, 'fig_3_split/')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  # mesc_file = ''
+  # libA = helper.load_lib_data(helper.INPUT_DIRECTORY + 'libX/', 'libA')
+  # train_mesc_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}train_mesc.pkl'
+  # test_mesc_file = f'{out_dir + helper.FOLDER_PRED_KEY + helper.FOLDER_PARAM_KEY}test_mesc.pkl'
+  # prediction_files = os.listdir(out_dir + helper.FOLDER_PRED_KEY)
+  #
+  # for prediction_file in prediction_files:
+  #   if "mesc" in prediction_file:
+  #     mesc_file = prediction_file
+  #     break
+  #
+  # if mesc_file != '':
+  #   predictions = helper.load_predictions(out_dir + helper.FOLDER_PRED_KEY + mesc_file)
+  #   test_mesc = helper.load_pickle(test_mesc_file)
+  #   # Get actual observations
+  #   observations = get_observed_values(test_mesc)
+  # else:
+  #   raise Exception("Please retrain the model")
+  #
+  # pred, obs, ins_only = get_predictions_and_observations(test_mesc, nn_params, nn2_params, rate_model, bp_model, normalizer)
+  # insertion_pred_obs = pd.DataFrame(ins_only).T
+  #
+  # pearson_co, t_values = get_pearson_pred_obs(pred, obs)
+  # plt.plot_prediction_observation(insertion_pred_obs)
+  # plt.plot_student_t_distribution(t_values)
+  #
+  # # [exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs] = parse_data(test_mesc)
+  # # INP, OBS, OBS2, NAMES, DEL_LENS = format_data(exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs)
+  # # Predict unseen values
+  # # rsq1, rsq2 = helper.rsq(nn_params, nn2_params, INP, OBS, OBS2, DEL_LENS, NAMES)
+  # #
+  # # plot_rsqs(rsq1, rsq2)
+  #
+  # helper.print_and_log("Original Learning Curve for Insertion Model...", log_fn)
+  # total_values = helper.load_pickle(model_folder + helper.FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
+  # all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
+  # learning_curves(all_data_mesc, total_values)
 
 

@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import autograd.numpy as np
 from collections import defaultdict
