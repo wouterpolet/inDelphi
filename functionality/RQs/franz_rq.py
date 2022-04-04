@@ -1,10 +1,14 @@
 import os
+import sys
 import pickle
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(root_folder)
 
+import functionality.helper as helper
 # Functions
 ############
 
@@ -12,12 +16,6 @@ import numpy as np
 def _pickle_load(file):
     data = pickle.load(open(file, 'rb'))
     return data
-
-
-# Read from pickle files
-def read_data(file):
-    master_data = _pickle_load(file)
-    return master_data['counts'], master_data['del_features']
 
 
 # Get deletion distribution for each gRNA
@@ -70,8 +68,8 @@ def get_del_len_distrib_per_type(deletions_df):
 
 
 # Load data
-input_dir = os.path.dirname(os.path.dirname(__file__)) + '/in/'
-counts, del_features = read_data(input_dir + 'dataset.pkl')  # mESC
+input_dir = helper.INPUT_DIRECTORY
+counts, del_features = helper.read_data(input_dir + 'dataset.pkl')  # mESC
 # counts, del_features = read_data(input_dir + 'U2OS.pkl')        # U2OS
 
 # mESC df
@@ -80,6 +78,9 @@ mESC_merged_data = mESC_merged_data.reset_index()
 
 # U2OS df
 
+# Some new files
+rq_franz = input_dir + 'franz/'
+new_counts, new_del_features = helper.read_data(rq_franz + '_fill here_.pkl')  # mESC
 
 # mESC distributions
 #####################
