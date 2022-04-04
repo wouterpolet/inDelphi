@@ -174,8 +174,12 @@ def load_predictions(out_dir):
   files = glob.glob(out_dir + FOLDER_PRED_KEY + '*.pkl')
   if len(files) == 1:
     # predictions = load_pickle(out_dir + FOLDER_PRED_KEY + files[0])
-    predictions = load_pickle(files[0])
-  return predictions
+    return load_pickle(files[0])
+  elif len(files) == 2:
+    mesc_file = glob.glob(out_dir + FOLDER_PRED_KEY + '*.pkl')
+    u2os_files = glob.glob(out_dir + FOLDER_PRED_KEY + '*.pkl')
+    return load_pickle(mesc_file[0]), load_pickle(u2os_files[0])
+  return None
 
 
 def load_statistics(out_dir_stat):

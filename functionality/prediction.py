@@ -83,6 +83,9 @@ def get_pearson_pred_obs(prediction, observation, del_len_limit=61):
     for i in range(1, -del_len_limit, -1):
       if i != 0:
         current_pred_normalized_fq.append(pred['Indel Length Prediction'][i])
+    # Append 0s from 31 to 61
+    for i in range(-31, -61, -1):
+      current_pred_normalized_fq.append(0)
     pred_normalized_fq.append(current_pred_normalized_fq)
 
   for idx, key in enumerate(observation.keys()):
@@ -90,6 +93,9 @@ def get_pearson_pred_obs(prediction, observation, del_len_limit=61):
     for i in range(1, -del_len_limit, -1):
       if i != 0:
         normalized_fq.append(observation[key][i])
+    # Append 0s from 31 to 61
+    for i in range(-31, -61, -1):
+      normalized_fq.append(0)
 
     x_mean = np.mean(normalized_fq)
     y_mean = np.mean(pred_normalized_fq[idx])

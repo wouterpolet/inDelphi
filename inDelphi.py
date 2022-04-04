@@ -72,7 +72,7 @@ def model_creation(data, model_type):
   return model
 
 
-def calculate_predictions(data, models, in_del, new_targets=False):
+def calculate_predictions(data, models, in_del, new_targets=False, cell_line='mesc'):
   """
   Calculate all predictions for the data provided using the models
   @param data: dataframe with the samples
@@ -85,9 +85,7 @@ def calculate_predictions(data, models, in_del, new_targets=False):
 
   if in_del:
     print_and_log("Predicting Sequence Outcomes...", log_fn)
-    predictions_file = 'in_del_distribution_mesc.pkl'
-    if os.path.exists(predictions_file):
-      predictions_file = 'in_del_distribution_u2os.pkl'
+    predictions_file = 'in_del_distribution_'+cell_line+'.pkl'
     data = pd.DataFrame(data).T
     data = data.rename(columns={0: "target"})
   else:
@@ -176,24 +174,22 @@ def calculate_figure_4(train_model, load_prediction):
 
   # Loading predictions if specified & file exists
   if load_prediction:
-    # TODO fix load predictions
-    fig4a_predictions = helper.load_predictions(out_dir)
-    fig4b_predictions = helper.load_predictions(out_dir)
+    fig4a_predictions, fig4b_predictions = helper.load_predictions(out_dir)
     test_mesc = helper.load_pickle(test_mesc_file)
     test_u2os = helper.load_pickle(test_u2os_file)
-
-    prediction_files = os.listdir(out_dir + helper.FOLDER_PRED_KEY)
-    if len(prediction_files) == 3:
-      mesc_file = ''
-      u2os_file = ''
-      for prediction_file in prediction_files:
-        if "mesc" in prediction_file:
-          mesc_file = prediction_file
-        elif "u2os" in prediction_file:
-          u2os_file = prediction_file
-      if mesc_file != '' and u2os_file != '':
-        fig4a_predictions = helper.load_pickle(out_dir + helper.FOLDER_PRED_KEY + mesc_file)
-        fig4b_predictions = helper.load_pickle(out_dir + helper.FOLDER_PRED_KEY + u2os_file)
+    #
+    # prediction_files = os.listdir(out_dir + helper.FOLDER_PRED_KEY)
+    # if len(prediction_files) == 3:
+    #   mesc_file = ''
+    #   u2os_file = ''
+    #   for prediction_file in prediction_files:
+    #     if "mesc" in prediction_file:
+    #       mesc_file = prediction_file
+    #     elif "u2os" in prediction_file:
+    #       u2os_file = prediction_file
+    #   if mesc_file != '' and u2os_file != '':
+    #     fig4a_predictions = helper.load_pickle(out_dir + helper.FOLDER_PRED_KEY + mesc_file)
+    #     fig4b_predictions = helper.load_pickle(out_dir + helper.FOLDER_PRED_KEY + u2os_file)
 
   print_and_log("Loading data...", log_fn)
   if fig4a_predictions is None or fig4b_predictions is None:
@@ -236,7 +232,7 @@ def calculate_figure_4(train_model, load_prediction):
       train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
       # Store the data used:
-      print_and_log("Storing Predictions...", log_fn)
+      print_and_log("Storing DataSets...", log_fn)
 
       with open(train_mesc_file, 'wb') as out_file:
         pickle.dump(train_mesc, out_file)
@@ -250,18 +246,18 @@ def calculate_figure_4(train_model, load_prediction):
 
       # Models for Figure 4
       models_4a = model_creation(train_mesc, 'fig_4mesc/')
-      models_4b = model_creation(train_u2os, 'fig_4u20s/')
+      models_4b = model_creation(train_u2os, 'fig_4u2os/')
     else:
       test_mesc = helper.load_pickle(test_mesc_file)
       test_u2os = helper.load_pickle(test_u2os_file)
       print_and_log("Loading models...", log_fn)
       models_4a = helper.load_models(out_dir + 'fig_4mesc/')
-      models_4b = helper.load_models(out_dir + 'fig_4u20s/')
+      models_4b = helper.load_models(out_dir + 'fig_4u2os/')
 
     test_mesc_targets = helper.get_targets(libA, test_mesc)
     test_u2os_targets = helper.get_targets(libA, test_u2os)
-    fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, in_del=True)
-    fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, in_del=True)
+    fig4a_predictions = calculate_predictions(test_mesc_targets, models_4a, in_del=True, cell_line='mesc')
+    fig4b_predictions = calculate_predictions(test_u2os_targets, models_4b, in_del=True, cell_line='u2os')
 
   # Get Observed Values
   print_and_log("Calculating the Observed Values...", log_fn)

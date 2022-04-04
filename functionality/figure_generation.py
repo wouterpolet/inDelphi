@@ -144,7 +144,7 @@ def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS):
                         , linewidth=0, saturation=1)
     bx = sns.boxplot(data=df2, x='group', y='value', palette={'mESC': pri_clr_mesc, 'U2OS': pri_clr_u2os}, saturation=1
                      , width=0.4, ax=ax, boxprops=dict(zorder=2, linewidth=0), capprops=dict(color=gry_clr)
-                     , whiskerprops=dict(color=gry_clr), medianprops=dict(color=wht_clr))
+                     , whiskerprops=dict(color=gry_clr), medianprops=dict(color=wht_clr), showfliers=False)
     ax.set_xlabel('')
     bx.set_xticklabels(labels, rotation=0, fontsize=8)
     bx.set(title='', xlabel='',
@@ -154,8 +154,8 @@ def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS):
     ax.spines['top'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
 
-    # ax.set_ylim([0, 1])
-    # bx.set_ylim([0, 1])
+    ax.set_ylim([0, 1])
+    bx.set_ylim([0, 1])
     plt.tight_layout()
     plt.show()
 
