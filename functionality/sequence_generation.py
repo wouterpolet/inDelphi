@@ -20,7 +20,6 @@ def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
     all_exon_cutsites = load_intron_cutsites(inp_fn + 'exons', 'exon')
     all_intron_cutsites = load_intron_cutsites(inp_fn + 'introns', 'intron')
     # all_cutsites = load_genes_cutsites(inp_fn)
-    # TODO - use unique - confirmed
     all_cutsites = pd.concat([all_intron_cutsites, all_exon_cutsites])
     cutsites = np.random.choice(all_cutsites.unique(), size=sample_size, replace=False).reset_index(drop=True)
     # cutsites = all_cutsites.sample(n=sample_size).reset_index(drop=True)

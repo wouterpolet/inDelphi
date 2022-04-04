@@ -183,7 +183,7 @@ def load_predictions(out_dir, in_del):
   else:
     distribution = glob.glob(out_dir + FOLDER_PRED_KEY + PREDICTION_FILE_3 + '.pkl')
     if len(distribution) == 1:
-      return load_pickle(distribution)
+      return load_pickle(distribution[0])
   return None
 
 

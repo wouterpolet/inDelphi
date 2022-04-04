@@ -652,12 +652,11 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   trained_nn2 = train_parameter(nn2_data, seed, nn2_layer_sizes, exec_id, is_nn1=False)
   jrq.save_statistics(out_dir + 'nn2/', pd.DataFrame(execution_statistics))
 
-
   # Training parameters using the max instead of sum
   print_and_log("Training model...", log_fn)
   print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   trained_params_max = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
   jrq.save_statistics(out_dir + 'max/', pd.DataFrame(execution_statistics))
 
-  return trained_params
+  return [trained_nn1, trained_nn2], trained_params_max
 

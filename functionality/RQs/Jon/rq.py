@@ -262,7 +262,7 @@ if __name__ == '__main__':
     raise Exception("Please specify a valid pre-trained model")
 
   print_and_log("Loading pre-trained networks...", log_fn)
-  model_folder = out_dir + 'fig_4mesc/'
+  model_folder = out_dir + 'fig_3/'
   nn_path = model_folder + helper.FOLDER_PARAM_KEY
   models = helper.load_models(model_folder)
   nn_params = models['nn']
@@ -279,10 +279,13 @@ if __name__ == '__main__':
   print_and_log("Learning new Neural Network - Split...", log_fn)
 
   all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
-  models_3_new = model_creation(all_data_mesc, 'fig_3_opt/')
+  split_nns, max_nns = model_creation(all_data_mesc, 'fig_3_opt/')
   # Loading and plotting the current model loss values
   print_and_log("Learning Curve for Current Neural Networks...", log_fn)
-
+  model_folder = out_dir + 'fig_3opt/max'
+  load_and_plot_model_loss(model_folder)
+  model_folder = out_dir + 'fig_3opt/max'
+  load_and_plot_model_loss(model_folder)
 
 
 
