@@ -93,10 +93,14 @@ def parse_data(all_data):
     total_count = sum(all_dels['countEvents'])
     all_dels['countEvents'] = all_dels['countEvents'].div(total_count)
     dl_freq_df = all_dels[all_dels['Size'] <= 28]
+
+    total_count = sum(dl_freq_df['countEvents'])
+    dl_freq_df['countEvents'] = dl_freq_df['countEvents'].div(total_count)
     # dl_freq_df = mh_exp_data[mh_exp_data['Size'] <= 28]
     for del_len in range(1, 28 + 1):
       dl_freq = sum(dl_freq_df[dl_freq_df['Size'] == del_len]['countEvents'])
       curr_dl_freqs.append(dl_freq)
+
     dl_freqs.append(curr_dl_freqs)
 
     # # Microhomology-less computation
@@ -150,7 +154,7 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, rs, store=Fa
     # Deletion length frequencies, only up to 28
     #   (Restricts training to library data, else 27 bp.)
     ##
-    # TODO set to 28 or 30?
+
     dls = np.arange(1, 28 + 1)
     dls = dls.reshape(28, 1)
     nn2_scores = nn_match_score_function(nn2_params, dls)
@@ -207,11 +211,9 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, rs, store=Fa
     df = pd.DataFrame(total_phi_del_freq, columns=column_names)
     df.to_pickle(out_dir_params + 'total_phi_delfreq.pkl')
 
-  # TODO - Why are we returning a single loss value, if we're comuting the loss for both NNs?
-  #  Shouldn't this return 2 items - Loss of NN1 and Loss of NN2?
   current_statistics['nn_loss'] = nn_loss
   current_statistics['nn2_loss'] = nn2_loss
-  return LOSS # / num_samples #, nn_loss/len(inp), nn2_loss/len(inp)
+  return LOSS
 
 
 def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
@@ -239,12 +241,6 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
   both_objective_grad = grad(objective, argnum=[0, 1])
 
   def print_perf(nn_params, nn2_params, iter):
-    # if iter % 5 != 0:
-    #   return None
-
-    # TODO - Check with team, why for one we use batch size - set to 200 (constant) and the other we use input length
-    #  Why not use the len(INP_Train)?
-    # train_size = batch_size
     train_size = len(INP_train)
     test_size = len(INP_test)
 

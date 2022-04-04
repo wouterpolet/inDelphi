@@ -96,7 +96,7 @@ def calculate_predictions(data, models, in_del, new_targets=False):
     print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions_file = 'freq_distribution.pkl'
 
-  preds = pred.Prediction(DELETION_LEN_LIMIT, 28, models)
+  preds = pred.Prediction(DELETION_LEN_LIMIT, models)
   predictions = preds.predict_all_sequence_outcomes(data)
 
   print_and_log("Storing Predictions...", log_fn)

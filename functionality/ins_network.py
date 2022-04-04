@@ -75,11 +75,6 @@ class InsertionModel:
       del_score = 0
       norm_entropy = 0
 
-    # local_seq = exp[len(exp) - 4:len(exp) + 4] # TODO - fix - +4 will fail - need to get sequence from libA.txt
-    # This is not needed
-    local_seq = exp[len(exp) - 4:len(exp)]
-    gc = (local_seq.count('C') + local_seq.count('G')) / len(local_seq)
-
     if fivebase == 'A':
       fivebase_oh = np.array([1, 0, 0, 0])
     if fivebase == 'C':
@@ -107,7 +102,6 @@ class InsertionModel:
     alldf_dict['Fivebase'].append(fivebase)
     alldf_dict['Del Score'].append(del_score)
     alldf_dict['Entropy'].append(norm_entropy)
-    alldf_dict['GC'].append(gc)
     alldf_dict['Fivebase_OH'].append(fivebase_oh)
     alldf_dict['Threebase'].append(threebase)
     alldf_dict['Threebase_OH'].append(threebase_oh)
@@ -125,7 +119,7 @@ class InsertionModel:
     if sum(insertions['countEvents']) <= 100:
       return
 
-    freq = sum(insertions['Frequency'])  # TODO check if Frequency can be removed
+    freq = sum(insertions['Frequency'])
     a_frac = sum(insertions[insertions['nucleotide'] == 'A']['Frequency']) / freq
     c_frac = sum(insertions[insertions['nucleotide'] == 'C']['Frequency']) / freq
     g_frac = sum(insertions[insertions['nucleotide'] == 'G']['Frequency']) / freq
@@ -139,7 +133,7 @@ class InsertionModel:
     fivebase = exp[len(exp) - 4]
     alldf_dict['Base'].append(fivebase)
 
-    alldf_dict['_Experiment'].append(exp)  # TODO check if _Experiment can be removed
+    alldf_dict['_Experiment'].append(exp)
     return alldf_dict
 
   def featurize(self, rate_stats, Y_nm):

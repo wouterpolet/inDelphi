@@ -91,9 +91,8 @@ def get_pearson_pred_obs(prediction, observation, del_len_limit=61):
       if i != 0:
         normalized_fq.append(observation[key][i])
 
-    # TODO - not sure if we should use the in-built pearson function? pearsonr
     x_mean = np.mean(normalized_fq)
-    y_mean = np.mean(pred_normalized_fq[idx]) # TODO - check item to pick
+    y_mean = np.mean(pred_normalized_fq[idx])
     pearson_numerator = np.sum((normalized_fq - x_mean) * (pred_normalized_fq[idx] - y_mean))
     pearson_denom = np.sqrt(np.sum((normalized_fq - x_mean) ** 2) * np.sum((pred_normalized_fq[idx] - y_mean) ** 2))
     r_values.append(pearson_numerator / pearson_denom)
@@ -101,19 +100,14 @@ def get_pearson_pred_obs(prediction, observation, del_len_limit=61):
 
 
 class Prediction:
-  def __init__(self, del_limit, dl_limit, models):
-    # TODO check if we need both or just one?
+  def __init__(self, del_limit, models):
     self.deletion_len_limit = del_limit + 1
-    self.dl_limit = dl_limit + 1
 
     self.nn_params = models['nn']
     self.nn2_params = models['nn_2']
     self.rate_model = models['rate']
     self.bp_model = models['bp']
     self.normalizer = models['norm']
-
-    # TODO maybe filter out unneeded columns prior to returning?
-    # self.predictions = self.predict_all_sequence_outcomes(data)
 
   def predict_sequence(self, seq, cutsite):
     """
@@ -223,7 +217,7 @@ class Prediction:
     # Predict 1 bp insertions
     del_score = total_phi_score  # <- input to k-nn
     dlpred = []
-    for dl in range(1, self.dl_limit):  # for each deletion length 1:28
+    for dl in range(1, 28+1):  # for each deletion length 1:28
       crit = (pred_del_df['Length'] == dl)  # select the predicted dels with that del length
       dlpred.append(
         sum(pred_del_df[crit]['Predicted_Frequency']))  # store the predicted freq of all dels with that length
@@ -231,8 +225,6 @@ class Prediction:
     norm_entropy = entropy(dlpred) / np.log(len(dlpred))  # precision score of ^ <- input to k-nn
 
     # feature_names = ['5G', '5T', '3A', '3G', 'Entropy', 'DelScore']
-    # no difference between A and C
-    # TODO should these change? st they are unique
     fiveohmapper = {'A': [0, 0], 'C': [0, 0], 'G': [1, 0], 'T': [0, 1]}
     # no difference between C and T
     threeohmapper = {'A': [1, 0], 'C': [0, 0], 'G': [0, 1], 'T': [0, 0]}
@@ -277,17 +269,22 @@ class Prediction:
     timer = Timer(total=size)
     has_orientation = 'Orientation' in gene_data.columns
 
-    for index, row in gene_data.iterrows():
+    for idx, row in gene_data.iterrows():
       seq = row['target']
-      local_cutsite = 30
-      grna = seq[13:33]
+
+      if has_orientation:
+        orientation = row['Orientation']
+        all_data['Orientation'].append(orientation)
+        local_cutsite = 30
+        grna = seq[13:33]
+      else:
+        grna = idx
+        local_cutsite = 30
+        seq = 'CAT' + seq + 'AG'
 
       # the SpCas9 gRNAs targeting exons and introns
       all_data['Sequence Context'].append(seq)
       all_data['Local Cutsite'].append(local_cutsite)
-      if has_orientation:
-        orientation = row['Orientation']
-        all_data['Orientation'].append(orientation)
       all_data['Cas9 gRNA'].append(grna)
 
       # Make predictions for each SpCas9 gRNA targeting exons and introns
