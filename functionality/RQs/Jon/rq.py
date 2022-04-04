@@ -1,7 +1,15 @@
+import os
+import sys
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.append(root_folder)
+
 import argparse
 import pandas as pd
 import autograd.numpy as np
 from collections import Counter
+
+import warnings
+from pandas.core.common import SettingWithCopyWarning
 
 from scipy.stats import pearsonr
 from sklearn.neighbors import KNeighborsRegressor
@@ -12,11 +20,14 @@ from functionality.RQs.Jon.helper import load_nn_statistics
 # from functionality.neural_networks import mh_del_subset, normalize_count, del_subset
 from functionality.prediction import featurize
 
-import autograd.numpy.random as npr
 import functionality.RQs.Jon.plots as plt
 import functionality.helper as helper
 import functionality.RQs.Jon.nn as nn
 import functionality.ins_network as knn
+
+warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
 
 
 def learning_curves(all_data, total_values):
@@ -188,7 +199,7 @@ def get_pearson_pred_obs(prediction, observation):
     pred_normalized_fq.append(current_pred_normalized_fq)   #   return array of predicted frequencies
 
   for idx, key in enumerate(observation.keys()):
-    # Get prediction of GRNA - TODO Change based on grna item
+    # Get prediction of GRNA
     # normalized_fq = prediction[prediction['Sample_Name']]
     normalized_fq = []
     for i in range(1, -61, -1):
@@ -197,9 +208,8 @@ def get_pearson_pred_obs(prediction, observation):
 
     # For dictionary, get items from 1 to -30 into an array
 
-    # TODO - not sure if we should use the in-built pearson function? pearsonr
     x_mean = np.mean(normalized_fq)
-    y_mean = np.mean(pred_normalized_fq[idx]) # TODO - check item to pick
+    y_mean = np.mean(pred_normalized_fq[idx])
     pearson_numerator = np.sum((normalized_fq - x_mean) * (pred_normalized_fq[idx] - y_mean))
     pearson_denom = np.sqrt(np.sum((normalized_fq - x_mean) ** 2) * np.sum((pred_normalized_fq[idx] - y_mean) ** 2))
     r_value = pearson_numerator / pearson_denom
@@ -213,7 +223,6 @@ def get_pearson_pred_obs(prediction, observation):
 def load_and_plot_model_loss(model_folder):
   loss_values = load_nn_statistics(model_folder)
   plt.plot_nn_loss_epoch(loss_values)
-  return npr.RandomState(1) # TODO remove
   return loss_values['seed'][0]
 
 
@@ -269,14 +278,10 @@ if __name__ == '__main__':
   # Training a new model with alterations to the NN
   print_and_log("Learning new Neural Network - Split...", log_fn)
 
-  print_and_log("Loading data...", log_fn)
   all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
-  models_3_max = model_creation(all_data_mesc, 'fig_3_max/')
-  models_3_split = model_creation(all_data_mesc, 'fig_3_split/')
-
-
-
-
+  models_3_new = model_creation(all_data_mesc, 'fig_3_opt/')
+  # Loading and plotting the current model loss values
+  print_and_log("Learning Curve for Current Neural Networks...", log_fn)
 
 
 

@@ -93,15 +93,15 @@ def figure_3(predictions):
   # plt.show()
   #
 
-  # density = stats.gaussian_kde(fig_3f_data_del, bw_method='silverman')
-  # count, x, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
-  # plt.plot(x, density(x))
-  # plt.show()
-  #
-  # density = stats.gaussian_kde(fig_3f_data_ins, bw_method='silverman')
-  # count, x, patches = ax1.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
-  # plt.plot(x, density(x))
-  # plt.show()
+  density = stats.gaussian_kde(fig_3f_data_del, bw_method='silverman')
+  count, x, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  plt.plot(x, density(x))
+  plt.show()
+
+  density = stats.gaussian_kde(fig_3f_data_ins, bw_method='silverman')
+  count, x, patches = ax1.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  plt.plot(x, density(x))
+  plt.show()
 
 
 

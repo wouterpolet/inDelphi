@@ -1,14 +1,17 @@
 import datetime
+import glob
+
 import pandas as pd
 from autograd import grad
 from autograd.misc import flatten
 import autograd.numpy as np
-import autograd.numpy.random as npr
-from scipy.stats import entropy
+from scipy.stats import entropy, pearsonr
 from sklearn.model_selection import train_test_split
 
-from functionality.author_helper import nn_match_score_function, init_random_params, rsq, print_and_log, alphabetize, save_parameters, exponential_decay, save_train_test_names, ensure_dir_exists
+from functionality.author_helper import nn_match_score_function, init_random_params, rsq, print_and_log, alphabetize, save_parameters, exponential_decay, save_train_test_names, ensure_dir_exists, save_parameter
 import functionality.RQs.Jon.helper as jrq
+from functionality.helper import load_pickle
+
 """
 Python file was not converted to class because of callback function and nested functions
 """
@@ -148,7 +151,6 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, store=False)
     # Deletion length frequencies, only up to 28
     #   (Restricts training to library data, else 27 bp.)
     ##
-    # TODO set to 28 or 30?
     dls = np.arange(1, 28 + 1)
     dls = dls.reshape(28, 1)
     nn2_scores = nn_match_score_function(nn2_params, dls)
@@ -283,7 +285,7 @@ def adam_minmin(grad_both, init_params_nn, init_params_nn2, callback=None, num_i
   m_nn, v_nn = np.zeros(len(x_nn)), np.zeros(len(x_nn))
   m_nn2, v_nn2 = np.zeros(len(x_nn2)), np.zeros(len(x_nn2))
   for i in range(num_iters):
-    g_nn_uf, g_nn2_uf = grad_both(unflatten_nn(x_nn), unflatten_nn2(x_nn2), i)
+    g_nn_uf, g_nn2_uf = grad_both(unflatten_nn(x_nn), unflatten_nn2(x_nn2))
     g_nn, _ = flatten(g_nn_uf)
     g_nn2, _ = flatten(g_nn2_uf)
 
@@ -352,7 +354,7 @@ def single_objective_nn1(nn_params, inp, obs, del_lens):
   return LOSS
 
 
-def single_objective_nn2(nn_params, nn2_params, inp, obs2, del_lens, store=False):
+def single_objective_nn2(nn2_params, inp, obs2, del_lens, store=False):
   LOSS = 0
   nn_loss = 0
   nn2_loss = 0
@@ -361,7 +363,7 @@ def single_objective_nn2(nn_params, nn2_params, inp, obs2, del_lens, store=False
     ##
     # MH-based deletion frequencies
     ##
-    mh_scores = nn_match_score_function(nn_params, inp[idx])
+    mh_scores = nn_match_score_function(trained_nn1, inp[idx])
     Js = np.array(del_lens[idx])
     unnormalized_fq = np.exp(mh_scores - 0.25 * Js)
 
@@ -378,14 +380,12 @@ def single_objective_nn2(nn_params, nn2_params, inp, obs2, del_lens, store=False
         mhfull_contribution = mhfull_contribution + mask
     unnormalized_fq = unnormalized_fq + mhfull_contribution
 
-
     mh_phi_total = np.sum(unnormalized_fq, dtype=np.float64)
 
     ##
     # Deletion length frequencies, only up to 28
     #   (Restricts training to library data, else 27 bp.)
     ##
-    # TODO set to 28 or 30?
     dls = np.arange(1, 28 + 1)
     dls = dls.reshape(28, 1)
     nn2_scores = nn_match_score_function(nn2_params, dls)
@@ -446,6 +446,86 @@ def single_objective_nn2(nn_params, nn2_params, inp, obs2, del_lens, store=False
   return LOSS
 
 
+def adam_min(grad_single, init_params_nn, callback=None, num_iters=100, step_size=0.001, b1=0.9, b2=0.999, eps=10 ** -8):
+  x_nn, unflatten_nn = flatten(init_params_nn)
+
+  m_nn, v_nn = np.zeros(len(x_nn)), np.zeros(len(x_nn))
+  for i in range(num_iters):
+    g_nn_uf = grad_single(unflatten_nn(x_nn))
+    g_nn, _ = flatten(g_nn_uf)
+
+    if callback:
+      callback(unflatten_nn(x_nn), i)
+
+    step_size = exponential_decay(step_size)
+
+    # Update parameters
+    m_nn = (1 - b1) * g_nn + b1 * m_nn  # First  moment estimate.
+    v_nn = (1 - b2) * (g_nn ** 2) + b2 * v_nn  # Second moment estimate.
+    mhat_nn = m_nn / (1 - b1 ** (i + 1))  # Bias correction.
+    vhat_nn = v_nn / (1 - b2 ** (i + 1))
+    x_nn = x_nn - step_size * mhat_nn / (np.sqrt(vhat_nn) + eps)
+  return unflatten_nn(x_nn)
+
+
+def singular_rsq_nn1(nn_params, inp, obs, del_lens, names=None):
+  if names is not None:
+    rsqs = {}
+  else:
+    rsqs = []
+  for idx in range(len(inp)):
+    ##
+    # MH-based deletion frequencies
+    ##
+    mh_scores = nn_match_score_function(nn_params, inp[idx])
+    Js = np.array(del_lens[idx])
+    unnormalized_fq = np.exp(mh_scores - 0.25 * Js)
+    normalized_fq = np.divide(unnormalized_fq, np.sum(unnormalized_fq))
+
+    rsq1 = pearsonr(normalized_fq, obs[idx])[0] ** 2
+    if names is not None:
+      rsqs[names[idx]] = rsq1
+    else:
+      rsqs.append(rsq1)
+  return rsqs
+
+
+def singular_rsq_nn2(nn2_params, inp, obs2, del_lens, names=None):
+  if names is not None:
+    rsqs = {}
+  else:
+    rsqs = []
+  for idx in range(len(inp)):
+    mh_scores = nn_match_score_function(trained_nn1, inp[idx])
+    Js = np.array(del_lens[idx])
+    ##
+    # Deletion length frequencies, only up to 28
+    #   (Restricts training to library data, else 27 bp.)
+    ##
+    dls = np.arange(1, 28 + 1)
+    dls = dls.reshape(28, 1)
+    nn2_scores = nn_match_score_function(nn2_params, dls)
+    unnormalized_nn2 = np.exp(nn2_scores - 0.25 * np.arange(1, 28 + 1))
+
+    # iterate through del_lens vector, adding mh_scores (already computed above) to the correct index
+    mh_contribution = np.zeros(28, )
+    for jdx in range(len(Js)):
+      dl = Js[jdx]
+      if dl > 28:
+        break
+      mhs = np.exp(mh_scores[jdx] - 0.25 * dl)
+      mask = np.concatenate([np.zeros(dl - 1, ), np.ones(1, ) * mhs, np.zeros(28 - (dl - 1) - 1, )])
+      mh_contribution = mh_contribution + mask
+    unnormalized_nn2 = unnormalized_nn2 + mh_contribution
+    normalized_fq = np.divide(unnormalized_nn2, np.sum(unnormalized_nn2))
+
+    rsq = pearsonr(normalized_fq, obs2[idx])[0] ** 2
+    if names is not None:
+      rsqs[names[idx]] = rsq
+    else:
+      rsqs.append(rsq)
+  return rsqs
+
 
 def train_parameter(ans, seed, nn_layer_sizes, exec_id, is_nn1=True):
   param_scale = 0.1
@@ -461,8 +541,6 @@ def train_parameter(ans, seed, nn_layer_sizes, exec_id, is_nn1=True):
       return single_objective_nn1(nn_params, INP_train, OBS_train, DEL_LENS_train)
     else:
       return single_objective_nn2(nn_params, INP_train, OBS_train, DEL_LENS_train)
-
-  both_objective_grad = grad(objective, argnum=[0, 1])
 
   def print_perf(nn_params, iter):
     train_size = len(INP_train)
@@ -486,9 +564,12 @@ def train_parameter(ans, seed, nn_layer_sizes, exec_id, is_nn1=True):
     loss_statistics['nn_test_loss'] = current_statistics['nn_loss']/test_size
     loss_statistics['nn2_test_loss'] = current_statistics['nn2_loss']/test_size
     # Jon - Research Question - End
-
-    tr_rsq = rsq(nn_params, INP_train, OBS_train, DEL_LENS_train)
-    te_rsq = rsq(nn_params, INP_test, OBS_test, DEL_LENS_test)
+    if is_nn1:
+      tr_rsq = singular_rsq_nn1(nn_params, INP_train, OBS_train, DEL_LENS_train)
+      te_rsq = singular_rsq_nn1(nn_params, INP_test, OBS_test, DEL_LENS_test)
+    else:
+      tr_rsq = singular_rsq_nn2(nn_params, INP_train, OBS_train, DEL_LENS_train)
+      te_rsq = singular_rsq_nn2(nn_params, INP_test, OBS_test, DEL_LENS_test)
 
     tr_rsq_mean = np.mean(tr_rsq)
     te_rsq_mean = np.mean(te_rsq)
@@ -508,14 +589,16 @@ def train_parameter(ans, seed, nn_layer_sizes, exec_id, is_nn1=True):
       letters = alphabetize(int(iter / 10))
       # helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
       print_and_log('...Saving parameters... | Timestamp: %s | Execution ID: %s | Parameter ID: %s' % (datetime.datetime.now(), exec_id, letters), log_fn)
-      save_parameters(nn_params, out_dir_params, letters)
+      if is_nn1:
+        save_parameter(nn_params, out_dir_params, letters, 'nn1')
+      else:
+        save_parameter(nn_params, out_dir_params, letters, 'nn2')
       if iter == num_epochs - 1:
         pass
 
     return None
 
-  optimized_params = adam_minmin(both_objective_grad, init_nn_params, init_nn2_params, step_size=step_size,
-                                 num_iters=num_epochs, callback=print_perf)
+  optimized_params = adam_min(grad(objective, argnum=[0]), init_nn_params, step_size=step_size, num_iters=num_epochs, callback=print_perf)
   return optimized_params
 
 
@@ -556,21 +639,25 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
 
+  # print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq\t| Test Loss\t| Test Rsq\t|", log_fn)
+  # nn1_data = INP_train, INP_test, OBS_train, OBS_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
+  global trained_nn1
+  # trained_nn1 = train_parameter(nn1_data, seed, nn_layer_sizes, exec_id, is_nn1=True)
+  # jrq.save_statistics(out_dir + 'nn1/', pd.DataFrame(execution_statistics))
+  nn_files = glob.glob(out_dir_params + "*_nn1.pkl")
+  nn_files.sort(reverse=True)
+  trained_nn1 = load_pickle(nn_files[0])
+
+  nn2_data = INP_train, INP_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
+  trained_nn2 = train_parameter(nn2_data, seed, nn2_layer_sizes, exec_id, is_nn1=False)
+  jrq.save_statistics(out_dir + 'nn2/', pd.DataFrame(execution_statistics))
+
+
   # Training parameters using the max instead of sum
   print_and_log("Training model...", log_fn)
   print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   trained_params_max = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
   jrq.save_statistics(out_dir + 'max/', pd.DataFrame(execution_statistics))
-
-
-  print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq\t| Test Loss\t| Test Rsq\t|", log_fn)
-  nn1_data = INP_train, INP_test, OBS_train, OBS_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
-  trained_nn1 = train_parameter(nn1_data, seed, nn_layer_sizes, exec_id, is_nn1=True)
-  jrq.save_statistics(out_dir + 'nn1/', pd.DataFrame(execution_statistics))
-
-  nn2_data = INP_train, INP_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
-  trained_nn2 = train_parameter(nn2_data, seed, nn2_layer_sizes, exec_id, is_nn1=False)
-  jrq.save_statistics(out_dir + 'nn2/', pd.DataFrame(execution_statistics))
 
   return trained_params
 
