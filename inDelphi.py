@@ -91,7 +91,7 @@ def calculate_predictions(data, models, in_del, new_targets=False):
     data = pd.DataFrame(data).T
     data = data.rename(columns={0: "target"})
   else:
-    print_and_log("Loading Gene Cutsites...", log_fn)
+    print_and_log("Loading Exon And Intron Cutsites...", log_fn)
     data = load_sequences_from_cutsites(data, new_targets, sample_size=1003524)
     print_and_log("Predicting Sequence Outcomes...", log_fn)
     predictions_file = 'freq_distribution.pkl'
@@ -151,7 +151,7 @@ def calculate_figure_3(train_model, load_prediction, new_targets):
       print_and_log("Loading models...", log_fn)
       models_3 = helper.load_models(model_folder)
     # Making predictions from model
-    fig3_predictions = calculate_predictions(helper.INPUT_DIRECTORY + 'genes/mart_export.txt', models_3, in_del=False, new_targets=new_targets)
+    fig3_predictions = calculate_predictions(helper.INPUT_DIRECTORY + 'exon_intron/', models_3, in_del=False, new_targets=new_targets)
 
   print_and_log("Plotting Figure...", log_fn)
   figure_generation.figure_3(fig3_predictions)
@@ -207,9 +207,18 @@ def calculate_figure_4(train_model, load_prediction):
       all_data_u2os = all_data_u2os.rename(columns={'deletionLength': 'Size'})
 
       print_and_log(f"u2OS Loaded - Count(Items): {len(all_data_u2os)}", log_fn)
+
+      print_and_log(f"Loading Excel from author", log_fn)
+      test_experiments = pd.read_excel(helper.INPUT_DIRECTORY + 'Source Data Extended Data Fig4.xlsx', sheet_name='ED Fig. 4b')
+      test_experiments_ids = test_experiments['_Experiment'] - 1 # 0 Base
+
+      libA_sequences = libA.loc[test_experiments_ids] # Get Rows
+      libA_sequences = (libA_sequences["name"] + '_' + libA_sequences["grna"]).values # Get Sample_Name
+      test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(libA_sequences)]
+
       # Reshuffling the data
-      unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), size=189, replace=False)
-      test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
+      # unique_mesc = np.random.choice(all_data_mesc['Sample_Name'].unique(), size=189, replace=False)
+      # test_mesc = all_data_mesc[all_data_mesc['Sample_Name'].isin(unique_mesc)]
       train_mesc = pd.merge(all_data_mesc, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
       unique_mesc = np.random.choice(train_mesc['Sample_Name'].unique(), size=1095, replace=False)
@@ -220,8 +229,10 @@ def calculate_figure_4(train_model, load_prediction):
       wrong_grna = wrong_grna.reset_index()
       wrong_grna = wrong_grna[wrong_grna['countEvents'] == 0]['Sample_Name']
       all_data_u2os = all_data_u2os[all_data_u2os["Sample_Name"].isin(wrong_grna) == False]
-      unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), size=185, replace=False)
-      test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
+
+      test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(libA_sequences)]
+      # unique_u2os = np.random.choice(all_data_u2os['Sample_Name'].unique(), size=185, replace=False)
+      # test_u2os = all_data_u2os[all_data_u2os['Sample_Name'].isin(unique_u2os)]
       train_u2os = pd.merge(all_data_u2os, test_mesc, indicator=True, how='outer').query('_merge=="left_only"').drop('_merge', axis=1)
 
       # Store the data used:

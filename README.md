@@ -81,7 +81,7 @@ For more information, please refer to
 ### Generic Case
 
 1. Install all of the packages and libraries needed using: 
-``pip install .``
+``pipenv install``
    1. Please ensure that the terminal is located in the directory which stores the **inDelphi.py**
 2. Identify which parameters to set (as described in the Program Parameters Section)
 3. Run the program using : ```python inDelphi.py [some params]``` (and any other parameters desired)

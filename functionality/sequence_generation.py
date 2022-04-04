@@ -3,6 +3,7 @@ import re
 import glob
 import pickle
 import pandas as pd
+import autograd.numpy as np
 import functionality.helper as helper
 from functionality.author_helper import reverse_complement
 
@@ -10,14 +11,18 @@ from functionality.author_helper import reverse_complement
 
 
 def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
-  pkl_file = os.path.dirname(inp_fn) + f'/cutsites_{sample_size}.pkl'
+  pkl_file = inp_fn + f'/cutsites_{sample_size}.pkl'
   if os.path.exists(pkl_file) and not new_targets:
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
   else:
-    all_cutsites = load_genes_cutsites(inp_fn)
+    all_exon_cutsites = load_intron_cutsites(inp_fn + 'exon')
+    all_intron_cutsites = load_intron_cutsites(inp_fn + 'intron')
+    # all_cutsites = load_genes_cutsites(inp_fn)
     # TODO - use unique - confirmed
-    cutsites = all_cutsites.sample(n=sample_size).reset_index(drop=True)
+    all_cutsites = pd.concat([all_intron_cutsites, all_exon_cutsites])
+    cutsites = np.random.choice(all_cutsites.unique(), size=sample_size, replace=False).reset_index(drop=True)
+    # cutsites = all_cutsites.sample(n=sample_size).reset_index(drop=True)
     with open(pkl_file, 'wb') as f:
       pickle.dump(cutsites, f)
   cutsites['Location'] = cutsites['Location'].astype('int32')
@@ -70,7 +75,7 @@ def load_intron_cutsites(inp_fn):
     pkl_file_batch = f'{inp_fn}_cutsites_{batches}.pkl'
     with open(pkl_file_batch, 'wb') as w_f:
       pickle.dump(all_data, w_f)
-    print('Gene cutsite complete')
+    print('Exon/Intron cutsite complete')
     return cutsites
 
 
@@ -80,7 +85,6 @@ def load_genes_cutsites(inp_fn):
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
     return cutsites
-
   all_lines = open(inp_fn, "r").readlines()
   sequence, chrom = '', ''
   data, cutsites = [], []

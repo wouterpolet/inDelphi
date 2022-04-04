@@ -10,6 +10,7 @@ matplotlib = "*"
 sklearn = "*"
 seaborn = "*"
 scipy = "*"
+openpyxl = "*"
 
 [dev-packages]
 
