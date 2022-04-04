@@ -288,4 +288,3 @@ if __name__ == '__main__':
     calculate_figure_3(train_models, load_prediction, new_targets)
     calculate_figure_4(train_models, load_prediction)
   print_and_log('Execution complete - model folder: ' + exec_id, log_fn)
-
