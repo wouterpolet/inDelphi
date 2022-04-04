@@ -7,7 +7,7 @@ from matplotlib.ticker import ScalarFormatter
 from scipy import stats
 
 
-def figure_3(predictions):
+def figure_3(predictions, save_file):
   """
   Generate Figure 3f - Deletion and Length Distributions
   @rtype: object
@@ -82,7 +82,11 @@ def figure_3(predictions):
   ax2.ticklabel_format(style='sci', axis='x', scilimits=(4, 4))
   ax2.xaxis.get_offset_text().set_visible(False)
   fix.text(0.5, 0.04, 'Number of Cas9 gRNAs from human exons and introns ($10^{4}$)', ha='center')
-  plt.show()
+
+  if save_file != '':
+    plt.savefig(save_file)
+  else:
+    plt.show()
 
   # sns.distplot(fig_3f_data_del, kde=True, label='Population')
   # plt.title('Population Distribution', fontsize=18)
@@ -93,15 +97,14 @@ def figure_3(predictions):
   # plt.show()
   #
 
-  density = stats.gaussian_kde(fig_3f_data_del, bw_method='silverman')
-  count, x, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
-  plt.plot(x, density(x))
-  plt.show()
-
-  density = stats.gaussian_kde(fig_3f_data_ins, bw_method='silverman')
-  count, x, patches = ax1.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
-  plt.plot(x, density(x))
-  plt.show()
+  # density = stats.gaussian_kde(fig_3f_data_del, bw_method='silverman')
+  # count, x, patches = ax1.hist(fig_3f_data_del, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  # plt.plot(x, density(x))
+  # plt.show()
+  #
+  # density = stats.gaussian_kde(fig_3f_data_ins, bw_method='silverman')
+  # count, x, patches = ax1.hist(fig_3f_data_ins, range=(0, 100), bins=bins_range, orientation='horizontal', edgecolor=None)
+  # plt.plot(x, density(x))
 
 
 
@@ -115,7 +118,7 @@ def figure_3(predictions):
 # seaborn zorder?” Aug 2021, last accessed 18 March 2022. [Online].
 # Available: https://stackoverflow.com/questions/68614447/
 # how-to-display-boxplot-in-front-of-violinplot-in-seaborn-seaborn-zorder
-def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS):
+def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS, save_file):
     """
     Generate Figure 4b - Indel length predictions box plots
     For mESCs and U2OS
@@ -157,5 +160,7 @@ def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS):
     ax.set_ylim([0, 1])
     bx.set_ylim([0, 1])
     plt.tight_layout()
-    plt.show()
-
+    if save_file != '':
+      plt.savefig(save_file)
+    else:
+      plt.show()

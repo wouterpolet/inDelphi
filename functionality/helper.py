@@ -22,6 +22,9 @@ INPUT_DIRECTORY = EXECUTION_PATH + FOLDER_INPUT_KEY
 SAMPLE_SIZE = 1003524
 BATCH_SIZE = 20000000
 
+PREDICTION_FILE_3 = 'freq_distribution'
+PREDICTION_FILE_4 = 'in_del_distribution_'
+
 def load_pickle(file):
   return pickle.load(open(file, 'rb'))
 
@@ -169,16 +172,18 @@ def store_predictions(out_dir, file, predictions):
     pickle.dump(predictions, out_file)
 
 
-def load_predictions(out_dir):
+def load_predictions(out_dir, in_del):
   # files = os.listdir(out_dir + FOLDER_PRED_KEY)
   files = glob.glob(out_dir + FOLDER_PRED_KEY + '*.pkl')
-  if len(files) == 1:
-    # predictions = load_pickle(out_dir + FOLDER_PRED_KEY + files[0])
-    return load_pickle(files[0])
-  elif len(files) == 2:
-    mesc_file = glob.glob(out_dir + FOLDER_PRED_KEY + '*_mesc.pkl')
-    u2os_files = glob.glob(out_dir + FOLDER_PRED_KEY + '*_u2os.pkl')
-    return load_pickle(mesc_file[0]), load_pickle(u2os_files[0])
+  if in_del:
+    mesc_file = glob.glob(out_dir + FOLDER_PRED_KEY + PREDICTION_FILE_4 + 'mesc.pkl')
+    u2os_files = glob.glob(out_dir + FOLDER_PRED_KEY + PREDICTION_FILE_4 + 'u2os.pkl')
+    if len(mesc_file) == 1 and len(u2os_files) == 1:
+      return load_pickle(mesc_file[0]), load_pickle(u2os_files[0])
+  else:
+    distribution = glob.glob(out_dir + FOLDER_PRED_KEY + PREDICTION_FILE_3 + '.pkl')
+    if len(distribution) == 1:
+      return load_pickle(distribution)
   return None
 
 

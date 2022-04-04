@@ -22,7 +22,6 @@ warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
 EXECUTION_PATH = os.path.dirname(os.path.dirname(__file__))
 DELETION_LEN_LIMIT = 30
 
-
 def get_args(args):
   """
   Get program arguements and set local variables
@@ -85,14 +84,14 @@ def calculate_predictions(data, models, in_del, new_targets=False, cell_line='me
 
   if in_del:
     print_and_log("Predicting Sequence Outcomes...", log_fn)
-    predictions_file = 'in_del_distribution_'+cell_line+'.pkl'
+    predictions_file = helper.PREDICTION_FILE_4 + cell_line + '.pkl'
     data = pd.DataFrame(data).T
     data = data.rename(columns={0: "target"})
   else:
     print_and_log("Loading Exon And Intron Cutsites...", log_fn)
     data = load_sequences_from_cutsites(data, new_targets, sample_size=1003524)
     print_and_log("Predicting Sequence Outcomes...", log_fn)
-    predictions_file = 'freq_distribution.pkl'
+    predictions_file = helper.PREDICTION_FILE_3 +'.pkl'
 
   preds = pred.Prediction(DELETION_LEN_LIMIT, models)
   predictions = preds.predict_all_sequence_outcomes(data)
@@ -137,7 +136,7 @@ def calculate_figure_3(train_model, load_prediction, new_targets):
   fig3_predictions = None
   # Loading predictions if specified & file exists
   if load_prediction:
-    fig3_predictions = helper.load_predictions(out_dir)
+    fig3_predictions = helper.load_predictions(out_dir, False)
 
   if fig3_predictions is None:
     if train_model:  # Training model
@@ -152,7 +151,7 @@ def calculate_figure_3(train_model, load_prediction, new_targets):
     fig3_predictions = calculate_predictions(helper.INPUT_DIRECTORY + 'exon_intron/', models_3, in_del=False, new_targets=new_targets)
 
   print_and_log("Plotting Figure...", log_fn)
-  figure_generation.figure_3(fig3_predictions)
+  figure_generation.figure_3(fig3_predictions, save_file=out_dir + helper.FOLDER_GRAPH_KEY + 'fig_3f.png')
   return
 
 
@@ -174,7 +173,7 @@ def calculate_figure_4(train_model, load_prediction):
 
   # Loading predictions if specified & file exists
   if load_prediction:
-    fig4a_predictions, fig4b_predictions = helper.load_predictions(out_dir)
+    fig4a_predictions, fig4b_predictions = helper.load_predictions(out_dir, True)
     test_mesc = helper.load_pickle(test_mesc_file)
     test_u2os = helper.load_pickle(test_u2os_file)
     #
@@ -269,7 +268,7 @@ def calculate_figure_4(train_model, load_prediction):
   pearson_u2OS = pred.get_pearson_pred_obs(fig4b_predictions, fig4b_observations, del_len_limit=DELETION_LEN_LIMIT)
 
   print_and_log("Plotting Figure...", log_fn)
-  figure_generation.figure_4(pearson_mESC, pearson_u2OS)
+  figure_generation.figure_4(pearson_mESC, pearson_u2OS, save_file=out_dir + helper.FOLDER_GRAPH_KEY + 'fig_4b.png')
 
   return
 

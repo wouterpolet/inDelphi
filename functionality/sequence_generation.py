@@ -2,10 +2,11 @@ import os
 import re
 import glob
 import pickle
+
 import pandas as pd
 import autograd.numpy as np
 import functionality.helper as helper
-from functionality.author_helper import reverse_complement
+from functionality.author_helper import reverse_complement, ensure_dir_exists
 
 # TODO Comment and clean
 
@@ -16,8 +17,8 @@ def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
   else:
-    all_exon_cutsites = load_intron_cutsites(inp_fn + 'exon')
-    all_intron_cutsites = load_intron_cutsites(inp_fn + 'intron')
+    all_exon_cutsites = load_intron_cutsites(inp_fn + 'exons', 'exon')
+    all_intron_cutsites = load_intron_cutsites(inp_fn + 'introns', 'intron')
     # all_cutsites = load_genes_cutsites(inp_fn)
     # TODO - use unique - confirmed
     all_cutsites = pd.concat([all_intron_cutsites, all_exon_cutsites])
@@ -29,16 +30,19 @@ def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
   return cutsites
 
 
-def load_intron_cutsites(inp_fn):
+def load_intron_cutsites(inp_fn, type):
   batches = 0
   curr_seq_count = 0
   processed = 0
+  inp_fld = os.path.dirname(inp_fn) + '/' + type + '/'
 
   pkl_file = inp_fn + '_cutsites.pkl'
   if os.path.exists(pkl_file):
     cutsites = helper.load_pickle(pkl_file)
     cutsites = cutsites.rename(columns={'Cutsite': 'target'})
     return cutsites
+  else:
+    ensure_dir_exists(inp_fld)
 
   with open(inp_fn, "r") as f:
     sequence, chrom = '', ''
@@ -47,7 +51,7 @@ def load_intron_cutsites(inp_fn):
       if '>' in line:
         if sequence != '':
           processed += 1
-          if processed % 100 == 0:
+          if processed % 10000 == 0:
             print('Working on: ', processed)
           curr_cutsites = get_cutsites(chrom, sequence)
           cutsites.extend(curr_cutsites)
@@ -56,7 +60,7 @@ def load_intron_cutsites(inp_fn):
         sequence = ''
         if curr_seq_count >= helper.BATCH_SIZE:
           batch_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome'])
-          pkl_file_batch = f'{inp_fn}_cutsites_{batches}.pkl'
+          pkl_file_batch = f'{inp_fld + type}_cutsites_{batches}.pkl'
           with open(pkl_file_batch, 'wb') as w_f:
             pickle.dump(batch_data, w_f)
           curr_seq_count = 0
@@ -72,7 +76,7 @@ def load_intron_cutsites(inp_fn):
 
     print('Storing to file')
     all_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome'])
-    pkl_file_batch = f'{inp_fn}_cutsites_{batches}.pkl'
+    pkl_file_batch = f'{inp_fld + type}_cutsites_{batches}.pkl'
     with open(pkl_file_batch, 'wb') as w_f:
       pickle.dump(all_data, w_f)
     print('Exon/Intron cutsite complete')

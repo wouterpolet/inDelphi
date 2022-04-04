@@ -143,3 +143,18 @@ To train using the code provided, please use one of the following commands:
 
 ------
 
+Folder Structure
+
+Below is a list of required folder structures:
+
+Predicting (new) data
+
+``/in/exon_intron``:
+- 2 files (exons, introns) - downloaded from drive - Exon Intron Data
+
+Using pre-trained models:
+
+``/out/3f_exon_intron/predictions``:
+- 1 file (freq_distribution.pkl) - downloaded from drive - Pretrainined model files
+
+
