@@ -15,17 +15,13 @@ def load_sequences_from_cutsites(inp_fn, new_targets, sample_size):
   pkl_file = inp_fn + f'/cutsites_{sample_size}.pkl'
   if os.path.exists(pkl_file) and not new_targets:
     cutsites = helper.load_pickle(pkl_file)
-    cutsites = cutsites.rename(columns={'Cutsite': 'target'})
   else:
     all_exon_cutsites = load_intron_cutsites(inp_fn + 'exons', 'exon')
     all_intron_cutsites = load_intron_cutsites(inp_fn + 'introns', 'intron')
-    # all_cutsites = load_genes_cutsites(inp_fn)
-    all_cutsites = pd.concat([all_intron_cutsites, all_exon_cutsites])
-    cutsites = np.random.choice(all_cutsites.unique(), size=sample_size, replace=False).reset_index(drop=True)
-    # cutsites = all_cutsites.sample(n=sample_size).reset_index(drop=True)
+    all_cutsites = pd.concat([all_exon_cutsites, all_intron_cutsites])
+    cutsites = all_cutsites.sample(n=sample_size).reset_index(drop=True)
     with open(pkl_file, 'wb') as f:
       pickle.dump(cutsites, f)
-  cutsites['Location'] = cutsites['Location'].astype('int32')
   return cutsites
 
 
@@ -38,13 +34,12 @@ def load_intron_cutsites(inp_fn, type):
   pkl_file = inp_fn + '_cutsites.pkl'
   if os.path.exists(pkl_file):
     cutsites = helper.load_pickle(pkl_file)
-    cutsites = cutsites.rename(columns={'Cutsite': 'target'})
     return cutsites
   else:
     ensure_dir_exists(inp_fld)
 
   with open(inp_fn, "r") as f:
-    sequence, chrom = '', ''
+    sequence = ''
     cutsites = []
     for line in f:
       if '>' in line:
@@ -52,13 +47,12 @@ def load_intron_cutsites(inp_fn, type):
           processed += 1
           if processed % 10000 == 0:
             print('Working on: ', processed)
-          curr_cutsites = get_cutsites(chrom, sequence)
+          curr_cutsites = get_cutsites(sequence)
           cutsites.extend(curr_cutsites)
           curr_seq_count += len(curr_cutsites)
-        chrom = line.strip().split(' ')[0]
         sequence = ''
         if curr_seq_count >= helper.BATCH_SIZE:
-          batch_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome'])
+          batch_data = pd.DataFrame(cutsites, columns=['target', 'Orientation'])
           pkl_file_batch = f'{inp_fld + type}_cutsites_{batches}.pkl'
           with open(pkl_file_batch, 'wb') as w_f:
             pickle.dump(batch_data, w_f)
@@ -71,15 +65,15 @@ def load_intron_cutsites(inp_fn, type):
 
     processed += 1  # Adding last item
     print('Last item inserted: ', processed)
-    cutsites.extend(get_cutsites(chrom, sequence))
+    cutsites.extend(get_cutsites(sequence))
 
     print('Storing to file')
-    all_data = pd.DataFrame(cutsites, columns=['Cutsite', 'Chromosome'])
+    all_data = pd.DataFrame(cutsites, columns=['target', 'Orientation'])
     pkl_file_batch = f'{inp_fld + type}_cutsites_{batches}.pkl'
     with open(pkl_file_batch, 'wb') as w_f:
       pickle.dump(all_data, w_f)
     print('Exon/Intron cutsite complete')
-    return cutsites
+    return all_data
 
 
 def load_genes_cutsites(inp_fn):
@@ -115,7 +109,7 @@ def load_genes_cutsites(inp_fn):
   return cutsites
 
 
-def get_cutsites(chrom, sequence):
+def get_cutsites(sequence):
   all_cutsites = []
   for idx in range(len(sequence)):  # for each base in the sequence
     # this loop finishes only each of 5% of all found cutsites with 60-bp long sequences containing only ACGT
@@ -141,7 +135,7 @@ def get_cutsites(chrom, sequence):
     if not re.match('^[ACGT]*$', seq):  # if there not only ACGT in seq, ^
       continue
 
-    all_cutsites.append([chrom, seq])
+    all_cutsites.append([seq, orientation])
   return all_cutsites
 
 

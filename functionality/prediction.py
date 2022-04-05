@@ -277,15 +277,14 @@ class Prediction:
 
     for idx, row in gene_data.iterrows():
       seq = row['target']
+      local_cutsite = 30
 
       if has_orientation:
         orientation = row['Orientation']
         all_data['Orientation'].append(orientation)
-        local_cutsite = 30
         grna = seq[13:33]
       else:
         grna = idx
-        local_cutsite = 30
         seq = 'CAT' + seq + 'AG'
 
       # the SpCas9 gRNAs targeting exons and introns

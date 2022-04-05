@@ -8,6 +8,41 @@ from functionality.helper import convert_oh_string_to_nparray
 from functionality.author_helper import ensure_dir_exists, Timer
 
 
+def featurize(rate_stats, Y_nm):
+  fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']])
+  threebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Threebase_OH']])
+  ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
+  del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
+  Y = np.array(rate_stats[Y_nm])
+  print('Entropy Shape: %s, Fivebase Shape: %s, Deletion Score Shape: %s'
+        % (ent.shape, fivebases.shape, del_scores.shape))
+  print('Y_nm: %s' % Y_nm)
+
+  normalizer = [
+    (np.mean(fivebases.T[2]), np.std(fivebases.T[2])),
+    (np.mean(fivebases.T[3]), np.std(fivebases.T[3])),
+    (np.mean(threebases.T[0]), np.std(threebases.T[0])),
+    (np.mean(threebases.T[2]), np.std(threebases.T[2])),
+    (np.mean(ent), np.std(ent)),
+    (np.mean(del_scores), np.std(del_scores))
+  ]
+
+  fiveG = (fivebases.T[2] - np.mean(fivebases.T[2])) / np.std(fivebases.T[2])
+  fiveT = (fivebases.T[3] - np.mean(fivebases.T[3])) / np.std(fivebases.T[3])
+  threeA = (threebases.T[0] - np.mean(threebases.T[0])) / np.std(threebases.T[0])
+  threeG = (threebases.T[2] - np.mean(threebases.T[2])) / np.std(threebases.T[2])
+  gtag = np.array([fiveG, fiveT, threeA, threeG]).T
+
+  ent = (ent - np.mean(ent)) / np.std(ent)
+  del_scores = (del_scores - np.mean(del_scores)) / np.std(del_scores)
+
+  X = np.concatenate((gtag, ent, del_scores), axis=1)
+  feature_names = ['5G', '5T', '3A', '3G', 'Entropy', 'DelScore']
+  print('Num. samples: %s, num. features: %s' % X.shape)
+
+  return X, Y, normalizer
+
+
 class InsertionModel:
   def __init__(self, model_dir, stat_dir):
     self.out_dir_model = model_dir
@@ -135,40 +170,6 @@ class InsertionModel:
 
     alldf_dict['_Experiment'].append(exp)
     return alldf_dict
-
-  def featurize(self, rate_stats, Y_nm):
-    fivebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Fivebase_OH']])
-    threebases = np.array([convert_oh_string_to_nparray(s) for s in rate_stats['Threebase_OH']])
-    ent = np.array(rate_stats['Entropy']).reshape(len(rate_stats['Entropy']), 1)
-    del_scores = np.array(rate_stats['Del Score']).reshape(len(rate_stats['Del Score']), 1)
-    Y = np.array(rate_stats[Y_nm])
-    print('Entropy Shape: %s, Fivebase Shape: %s, Deletion Score Shape: %s'
-          % (ent.shape, fivebases.shape, del_scores.shape))
-    print('Y_nm: %s' % Y_nm)
-
-    normalizer = [
-      (np.mean(fivebases.T[2]), np.std(fivebases.T[2])),
-      (np.mean(fivebases.T[3]), np.std(fivebases.T[3])),
-      (np.mean(threebases.T[0]), np.std(threebases.T[0])),
-      (np.mean(threebases.T[2]), np.std(threebases.T[2])),
-      (np.mean(ent), np.std(ent)),
-      (np.mean(del_scores), np.std(del_scores))
-    ]
-
-    fiveG = (fivebases.T[2] - np.mean(fivebases.T[2])) / np.std(fivebases.T[2])
-    fiveT = (fivebases.T[3] - np.mean(fivebases.T[3])) / np.std(fivebases.T[3])
-    threeA = (threebases.T[0] - np.mean(threebases.T[0])) / np.std(threebases.T[0])
-    threeG = (threebases.T[2] - np.mean(threebases.T[2])) / np.std(threebases.T[2])
-    gtag = np.array([fiveG, fiveT, threeA, threeG]).T
-
-    ent = (ent - np.mean(ent)) / np.std(ent)
-    del_scores = (del_scores - np.mean(del_scores)) / np.std(del_scores)
-
-    X = np.concatenate((gtag, ent, del_scores), axis=1)
-    feature_names = ['5G', '5T', '3A', '3G', 'Entropy', 'DelScore']
-    print('Num. samples: %s, num. features: %s' % X.shape)
-
-    return X, Y, normalizer
 
   def generate_models(self, X, y, bp_stats, Normalizer):
     # Train rate model
