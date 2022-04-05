@@ -203,6 +203,6 @@ class InsertionModel:
     ensure_dir_exists(self.out_dir_stat)
     rate_stats, bp_stats = self.get_statistics(all_data, total_values)
     rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
-    x, y, normalizer = self.featurize(rate_stats, 'Ins1bp/Del Ratio')
+    x, y, normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
     return self.generate_models(x, y, bp_stats, normalizer)
 
