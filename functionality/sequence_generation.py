@@ -4,7 +4,6 @@ import glob
 import pickle
 
 import pandas as pd
-import autograd.numpy as np
 import functionality.helper as helper
 from functionality.author_helper import reverse_complement, ensure_dir_exists
 
