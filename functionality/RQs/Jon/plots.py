@@ -8,7 +8,7 @@ import seaborn as sns
 from scipy.stats import linregress
 
 
-def plot_nn_loss_epoch(loss_values):
+def plot_nn_loss_epoch(loss_values, save_file):
   # Plot Global Loss
   plt.plot(loss_values['iteration'], loss_values['train_loss'], label="train NNs", color='#ff0000')
   plt.plot(loss_values['iteration'], loss_values['test_loss'], label="test NNs", color='#0000ff')
@@ -25,7 +25,11 @@ def plot_nn_loss_epoch(loss_values):
   # plt.grid(True)
   plt.gca().spines[['top', 'right']].set_visible(False)
 
-  plt.show()
+  if save_file != '':
+    plt.savefig(save_file + '_group_loss.png')
+  else:
+    plt.show()
+  plt.clf()
 
   plt.plot(loss_values['iteration'], loss_values['nn_train_loss'], label="train NN1", color='#0000ff', linestyle='--')
   plt.plot(loss_values['iteration'], loss_values['nn_test_loss'], label="test NN1", color='#0000ff')
@@ -45,7 +49,11 @@ def plot_nn_loss_epoch(loss_values):
   plt.tight_layout()
   plt.gca().spines[['top', 'right']].set_visible(False)
   # plt.grid(True)
-  plt.show()
+  if save_file != '':
+    plt.savefig(save_file + '_split_loss.png')
+  else:
+    plt.show()
+  plt.clf()
 
   ylim_min = min(min(loss_values['train_rsq1']), min(loss_values['train_rsq2']), min(loss_values['test_rsq1']),
                  min(loss_values['test_rsq2'])) - 0.1
@@ -69,15 +77,16 @@ def plot_nn_loss_epoch(loss_values):
   plt.tight_layout()
   plt.gca().spines[['top', 'right']].set_visible(False)
   # plt.grid(True)
-  plt.show()
+  # plt.show()
+  plt.clf()
   return
 
 
 def plot_learning_curve(train_sizes, train_mean, train_std, test_mean, test_std, score):
-  plt.plot(train_sizes, train_mean, '--', color="#111111", label="Training score")
-  plt.plot(train_sizes, test_mean, color="#111111", label="Cross-validation score")
-  plt.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, color="#DDDDDD")
-  plt.fill_between(train_sizes, test_mean - test_std, test_mean + test_std, color="#DDDDDD")
+  plt.plot(train_sizes, train_mean, '--', color="#2596be", label="Training score")
+  plt.plot(train_sizes, test_mean, color="#B1003F", label="Cross-validation score")
+  plt.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, color="#2596be", alpha=0.5)
+  plt.fill_between(train_sizes, test_mean - test_std, test_mean + test_std, color="#B1003F", alpha=0.5)
 
   plt.title("Learning Curve - Score = {:.3f}".format(score))
   plt.xlabel("Training Set Size"), plt.ylabel("Mean Squared Error"), plt.legend(loc="best")
@@ -85,6 +94,7 @@ def plot_learning_curve(train_sizes, train_mean, train_std, test_mean, test_std,
 
   plt.tight_layout()
   plt.show()
+  plt.clf()
   return
 
 

@@ -8,6 +8,7 @@ import autograd.numpy as np
 from scipy.stats import entropy, pearsonr
 from sklearn.model_selection import train_test_split
 
+from functionality.neural_networks import parse_data
 from functionality.author_helper import nn_match_score_function, init_random_params, rsq, print_and_log, alphabetize, save_parameters, exponential_decay, save_train_test_names, ensure_dir_exists, save_parameter
 import functionality.RQs.Jon.helper as jrq
 from functionality.helper import load_pickle
@@ -27,85 +28,6 @@ def initialize_model():
   nn_layer_sizes = [2, 16, 16, 1]
   nn2_layer_sizes = [1, 16, 16, 1]
   return nn_layer_sizes, nn2_layer_sizes
-
-
-def del_subset(all_data):
-  return all_data[all_data['Type'] == 'DELETION'].reset_index()
-
-
-def mh_del_subset(all_data):
-  deletions = del_subset(all_data)
-  return deletions, deletions[deletions['homologyLength'] != 0]
-
-
-def ins_subset(data):
-  return data[(data['Type'] == 'INSERTION') & (data['Indel'].str.startswith('1+'))]
-
-
-def normalize_count(data):
-  # Normalize Counts
-  total_count = sum(data['countEvents'])
-  if total_count == 0:
-    return None
-  data['countEvents'] = data['countEvents'].div(total_count)
-  return data
-
-
-def parse_data(all_data):
-  """
-  Transform the data provided to us (U2OS.pkl or dataset.pkl)
-  into their expected format keeping the conditions they specified in their code & literature
-  @param all_data: all the data (del_features and counts) provided in the file
-  @return:
-    exps     : Sample_Name
-    mh_lens  : homologyLength as int32
-    gc_fracs : homologyGCContent
-    del_lens : Size as int 32
-    freqs    : countEvents
-    dl_freqs : DL frequencies for all del len (1:28)
-  """
-  # deletions = all_data[all_data['Type'] == 'DELETION']
-  # deletions = deletions.reset_index()
-  # A single value GRNA -Train until 1871
-
-  # Q & A: How to determine if a deletion is MH or MH-less - length != 0
-  # Question: Do we need to distinguish between MH and MH-less, if yes, how to pass diff del_len to MH-less NN
-  deletions, microhomologies = mh_del_subset(all_data)
-  exps = deletions['Sample_Name'].unique()
-  # microhomologies = deletions[deletions['homologyLength'] != 0]
-  # mh_less = deletions[deletions['homologyLength'] == 0]
-  mh_lens, gc_fracs, del_lens, freqs, dl_freqs = [], [], [], [], []
-  for id, exp in enumerate(exps):
-    # Microhomology computation
-    mh_exp_data = microhomologies[microhomologies['Sample_Name'] == exp][['countEvents', 'homologyLength', 'homologyGCContent', 'Size']]
-
-    # Normalize Counts
-    total_count = sum(mh_exp_data['countEvents'])
-    if total_count == 0:
-      continue
-    mh_exp_data['countEvents'] = mh_exp_data['countEvents'].div(total_count)
-
-    freqs.append(mh_exp_data['countEvents'])
-    mh_lens.append(mh_exp_data['homologyLength'].astype('int32'))
-    gc_fracs.append(mh_exp_data['homologyGCContent'])
-    del_lens.append(mh_exp_data['Size'].astype('int32'))
-
-    curr_dl_freqs = []
-    all_dels = deletions[deletions['Sample_Name'] == exp][['countEvents', 'Size']]
-    total_count = sum(all_dels['countEvents'])
-    all_dels['countEvents'] = all_dels['countEvents'].div(total_count)
-    dl_freq_df = all_dels[all_dels['Size'] <= 28]
-    # dl_freq_df = mh_exp_data[mh_exp_data['Size'] <= 28]
-    for del_len in range(1, 28 + 1):
-      dl_freq = sum(dl_freq_df[dl_freq_df['Size'] == del_len]['countEvents'])
-      curr_dl_freqs.append(dl_freq)
-    dl_freqs.append(curr_dl_freqs)
-
-    # # Microhomology-less computation
-    # mh_less_exp_data = mh_less[mh_less['Sample_Name'] == exp][['countEvents', 'Size']]
-    # del_lens.append(mh_exp_data['Size'].astype('int32'))
-
-  return exps, mh_lens, gc_fracs, del_lens, freqs, dl_freqs
 
 
 def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, store=False):
@@ -590,7 +512,7 @@ def train_parameter(ans, seed, nn_layer_sizes, exec_id, is_nn1=True):
       # helper.print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
       print_and_log('...Saving parameters... | Timestamp: %s | Execution ID: %s | Parameter ID: %s' % (datetime.datetime.now(), exec_id, letters), log_fn)
       if is_nn1:
-        save_parameter(nn_params, out_dir_params, letters, 'nn1')
+        save_parameter(nn_params, out_dir_params, letters, 'nn')
       else:
         save_parameter(nn_params, out_dir_params, letters, 'nn2')
       if iter == num_epochs - 1:
@@ -639,24 +561,33 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
 
-  # print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq\t| Test Loss\t| Test Rsq\t|", log_fn)
-  # nn1_data = INP_train, INP_test, OBS_train, OBS_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
+  print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq\t| Test Loss\t| Test Rsq\t|", log_fn)
+  nn1_data = INP_train, INP_test, OBS_train, OBS_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
   global trained_nn1
-  # trained_nn1 = train_parameter(nn1_data, seed, nn_layer_sizes, exec_id, is_nn1=True)
-  # jrq.save_statistics(out_dir + 'nn1/', pd.DataFrame(execution_statistics))
-  nn_files = glob.glob(out_dir_params + "*_nn1.pkl")
-  nn_files.sort(reverse=True)
-  trained_nn1 = load_pickle(nn_files[0])
-
+  old_params = out_dir_params
+  out_dir_params = out_dir + 'split/'
+  ensure_dir_exists(out_dir_params)
+  trained_nn1 = train_parameter(nn1_data, seed, nn_layer_sizes, exec_id, is_nn1=True)
+  jrq.save_statistics(out_dir_params+'loss_nn1/', pd.DataFrame(execution_statistics))
+  # nn_files = glob.glob(out_dir_params + "*_nn1.pkl")
+  # nn_files.sort(reverse=True)
+  # trained_nn1 = load_pickle(nn_files[0])
+  execution_statistics = []
   nn2_data = INP_train, INP_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
   trained_nn2 = train_parameter(nn2_data, seed, nn2_layer_sizes, exec_id, is_nn1=False)
-  jrq.save_statistics(out_dir + 'nn2/', pd.DataFrame(execution_statistics))
+  jrq.save_statistics(out_dir_params+'loss_nn2/', pd.DataFrame(execution_statistics))
+  main_objective(trained_nn1, trained_nn2, INP, OBS, OBS2, DEL_LENS, store=True)
 
   # Training parameters using the max instead of sum
   print_and_log("Training model...", log_fn)
+  execution_statistics = []
   print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
+  out_dir_params = out_dir + 'max/'
+  ensure_dir_exists(out_dir_params)
   trained_params_max = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
-  jrq.save_statistics(out_dir + 'max/', pd.DataFrame(execution_statistics))
+  jrq.save_statistics(out_dir_params, pd.DataFrame(execution_statistics))
+  main_objective(trained_params_max[0], trained_params_max[1], INP, OBS, OBS2, DEL_LENS, store=True)
+  out_dir_params = old_params
 
   return [trained_nn1, trained_nn2], trained_params_max
 

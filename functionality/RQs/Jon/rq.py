@@ -1,5 +1,7 @@
 import os
 import sys
+
+
 root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 sys.path.append(root_folder)
 
@@ -7,6 +9,7 @@ import argparse
 import pandas as pd
 import autograd.numpy as np
 from collections import Counter
+import autograd.numpy.random as npr
 
 import warnings
 from pandas.core.common import SettingWithCopyWarning
@@ -18,22 +21,25 @@ from sklearn.model_selection import learning_curve
 from functionality.author_helper import print_and_log
 from functionality.RQs.Jon.helper import load_nn_statistics
 # from functionality.neural_networks import mh_del_subset, normalize_count, del_subset
-from functionality.prediction import featurize
+# from functionality.prediction import featurize
+import functionality.ins_network
 
 import functionality.RQs.Jon.plots as plt
 import functionality.helper as helper
 import functionality.RQs.Jon.nn as nn
-import functionality.ins_network as knn
+from functionality.ins_network import featurize
 
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=np.VisibleDeprecationWarning)
 
 
-def learning_curves(all_data, total_values):
-  rate_stats, bp_stats = helper.load_statistics(all_data, total_values, model_folder + helper.FOLDER_STAT_KEY)
+def learning_curves(data_nm, total_values):
+  knn = functionality.ins_network.InsertionModel(model_folder, model_folder + helper.FOLDER_STAT_KEY)
+  rate_stats, bp_stats = knn.get_statistics(data_nm, total_values)
+
   rate_stats = rate_stats[rate_stats['Entropy'] > 0.01]
-  X, y, Normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
+  X, y, normalizer = featurize(rate_stats, 'Ins1bp/Del Ratio')
   knn = KNeighborsRegressor()
   train_sizes, train_scores, test_scores = learning_curve(knn, X, y, cv=100,
                                                           scoring='neg_mean_squared_error',
@@ -220,10 +226,21 @@ def get_pearson_pred_obs(prediction, observation):
   return r_values, t_values
 
 
-def load_and_plot_model_loss(model_folder):
+def load_and_plot_model_loss(model_folder, all_data, figure_file, new_model=False):
   loss_values = load_nn_statistics(model_folder)
-  plt.plot_nn_loss_epoch(loss_values)
-  return loss_values['seed'][0]
+  plt.plot_nn_loss_epoch(loss_values, save_file=figure_file)
+
+  print_and_log("Original Learning Curve for Insertion Model...", log_fn)
+  if new_model:
+    total_values = helper.load_pickle(model_folder + 'total_phi_delfreq.pkl')
+  else:
+    total_values = helper.load_pickle(model_folder + helper.FOLDER_PARAM_KEY + 'total_phi_delfreq.pkl')
+  learning_curves(all_data, total_values)
+
+  if 'seed' in loss_values.columns:
+    return loss_values['seed'][0]
+  else:
+    return npr.RandomState(1)
 
 
 def model_creation(data, model_type):
@@ -232,19 +249,24 @@ def model_creation(data, model_type):
   Model Creation, Training & Optimization
   '''
   out_folder = out_dir + model_type
-  print_and_log("Training Neural Networks...", log_fn)
-  nn_params, nn2_params = nn.create_neural_networks(data, log_fn, out_folder, exec_id, seed_value)
-  '''
-  KNN - 1 bp insertions
-  Model Creation, Training & Optimization
-  '''
-  print_and_log("Training KNN...", log_fn)
-  total_values = helper.load_total_phi_delfreq(out_folder)
-  insertion_model = knn.InsertionModel(out_folder, out_folder + helper.FOLDER_STAT_KEY)
-  rate_model, bp_model, normalizer = insertion_model.train_knn(data, total_values)
-  model = {'nn': nn_params, 'nn_2': nn2_params, 'rate': rate_model, 'bp': bp_model, 'norm': normalizer}
-  return model
-
+  try:
+    nn_max = helper.load_neural_networks(out_folder + 'max/')
+    nn_split = helper.load_neural_networks(out_folder + 'split/')
+  except:
+    print_and_log("Training Neural Networks...", log_fn)
+    nn_split, nn_max = nn.create_neural_networks(data, log_fn, out_folder, exec_id, seed_value)
+  # print_and_log("Training Neural Networks...", log_fn)
+  # nn_split, nn_max = nn.create_neural_networks(data, log_fn, out_folder, exec_id, seed_value)
+  # '''
+  # KNN - 1 bp insertions
+  # Model Creation, Training & Optimization
+  # '''
+  # print_and_log("Training KNN...", log_fn)
+  # total_values = helper.load_total_phi_delfreq(out_folder)
+  # insertion_model = knn.InsertionModel(out_folder, out_folder + helper.FOLDER_STAT_KEY)
+  # rate_model, bp_model, normalizer = insertion_model.train_knn(data, total_values)
+  # model = {'nn': nn_params, 'nn_2': nn2_params, 'rate': rate_model, 'bp': bp_model, 'norm': normalizer}
+  return nn_split, nn_max
 
 
 if __name__ == '__main__':
@@ -270,22 +292,23 @@ if __name__ == '__main__':
   rate_model = models['rate']
   bp_model = models['bp']
   normalizer = models['norm']
+  all_data = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
 
   # Loading and plotting the current model loss values
   print_and_log("Learning Curve for Current Neural Networks...", log_fn)
-  seed_value = load_and_plot_model_loss(model_folder)
+  seed_value = load_and_plot_model_loss(model_folder, all_data, out_dir + helper.FOLDER_GRAPH_KEY + 'original')
 
   # Training a new model with alterations to the NN
   print_and_log("Learning new Neural Network - Split...", log_fn)
 
-  all_data_mesc = pd.concat(helper.read_data(helper.INPUT_DIRECTORY + 'dataset.pkl'), axis=1).reset_index()
-  split_nns, max_nns = model_creation(all_data_mesc, 'fig_3_opt/')
+  subfolder = 'fig_3_opt/'
+  split_nns, max_nns = model_creation(all_data, subfolder)
   # Loading and plotting the current model loss values
   print_and_log("Learning Curve for Current Neural Networks...", log_fn)
-  model_folder = out_dir + 'fig_3opt/max'
-  load_and_plot_model_loss(model_folder)
-  model_folder = out_dir + 'fig_3opt/max'
-  load_and_plot_model_loss(model_folder)
+  model_folder = out_dir + subfolder + 'split/'
+  load_and_plot_model_loss(model_folder, all_data, out_dir + helper.FOLDER_GRAPH_KEY + 'split', True)
+  model_folder = out_dir + subfolder + 'max/'
+  load_and_plot_model_loss(model_folder, all_data, out_dir + helper.FOLDER_GRAPH_KEY + 'max', True)
 
 
 
