@@ -7,10 +7,11 @@ Within this file, we explain how to run our inDelphi adaptation.
 2. [Data Availability](#data)
 3. [Program Parameters](#params)
 4. [Program Execution](#exec)
-	1. [Generic Case](#generic)
-	2. [Different Execution Cases](#different)
-	3. [Pre-Trained Execution Cases](#trained)
-	4. [Training Execution Cases](#training)
+    1. [Generic Case](#generic)
+    2. [Different Execution Cases](#different)
+    3. [Pre-Trained Execution Cases](#trained)
+    4. [Training Execution Cases](#training)
+    5. [Research Question Execution](#RQs)
 
 ----
 <div id='introduction'/>
@@ -154,7 +155,42 @@ Predicting (new) data
 
 Using pre-trained models:
 
-``/out/3f_exon_intron/predictions``:
+``/out/all_models/predictions``:
 - 1 file (freq_distribution.pkl) - downloaded from drive - Pretrainined model files
 
+
+---
+
+<div id="RQs"/>
+
+### Research Question Execution
+
+Below please find the commands to execute our research questions and obtain the resutls described in the report.
+
+**Franz:**
+
+**Jonathan:**
+
+Prerequisits: A pre-trained model.
+
+For the purposes of time: ``jon_all_models`` has been provided, where all 3 networks have been pre-trained.
+
+To re-train max & single-task learning frameworks, please supply a trained model from the generic application (as per the details above) and run the command
+
+Command: ``python C:\Development\CS4260\inDelphi\functionality\RQs\Jon\rq.py --model_folder=jon_all_models``
+
+**Wounter:**
+
+
+
+---
+
+The model was developed and testing on the following machine details:
+
+Case 1:
+
+- <u>Processor</u>: Intel(R) Core(TM) i7-10870H CPU @ 2.20GHz   2.21 GHz
+- <u>RAM</u>: 32.0 GB
+- <u>System Type</u>: 64-bit operating system, x64-based processor\
+- <u>Operating System</u>: Windows 11 Pro
 
