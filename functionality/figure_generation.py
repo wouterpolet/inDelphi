@@ -87,6 +87,7 @@ def figure_3(predictions, save_file):
     plt.savefig(save_file)
   else:
     plt.show()
+  plt.clf()
 
   # sns.distplot(fig_3f_data_del, kde=True, label='Population')
   # plt.title('Population Distribution', fontsize=18)
@@ -164,3 +165,4 @@ def figure_4(corr_gentyp_mESC, corr_gentyp_U2OS, save_file):
       plt.savefig(save_file)
     else:
       plt.show()
+    plt.clf()
