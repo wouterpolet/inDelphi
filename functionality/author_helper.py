@@ -283,7 +283,7 @@ def rsq(nn_params, nn2_params, inp, obs, obs2, del_lens, names=None):
 # Plotting and Writing
 ##
 def save_parameter(nn_params, out_dir_params, letters, name):
-  pickle.dump(nn_params, open(out_dir_params + letters + '_'+ name + '.pkl', 'wb'))
+  pickle.dump(nn_params, open(out_dir_params + letters + '_' + name + '.pkl', 'wb'))
   return
 
 

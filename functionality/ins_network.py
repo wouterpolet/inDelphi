@@ -45,6 +45,8 @@ def featurize(rate_stats, Y_nm):
 
 class InsertionModel:
   def __init__(self, model_dir, stat_dir):
+    ensure_dir_exists(stat_dir)
+    ensure_dir_exists(model_dir)
     self.out_dir_model = model_dir
     self.out_dir_stat = stat_dir
 
