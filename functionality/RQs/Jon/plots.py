@@ -70,16 +70,20 @@ def plot_nn_loss_epoch(loss_values, save_file):
   plt.tight_layout()
   plt.gca().spines[['top', 'right']].set_visible(False)
   # plt.grid(True)
-  # plt.show()
+  if save_file != '':
+    plt.savefig(save_file + '_average_rsq.png')
+  else:
+    plt.show()
+  plt.clf()
   plt.clf()
   return
 
 
 def plot_learning_curve(train_sizes, train_mean, train_std, test_mean, test_std, score, plot_type, save_dir):
-  plt.plot(train_sizes, train_mean, '--', color="#2596be", label="Training score")
-  plt.plot(train_sizes, test_mean, color="#B1003F", label="Cross-validation score")
-  plt.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, color="#2596be", alpha=0.5)
-  plt.fill_between(train_sizes, test_mean - test_std, test_mean + test_std, color="#B1003F", alpha=0.5)
+  plt.plot(train_sizes, train_mean, '--', color="#B1003F", label="Training score")
+  plt.plot(train_sizes, test_mean, color="#2596be", label="Cross-validation score")
+  plt.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, color="#B1003F", alpha=0.5)
+  plt.fill_between(train_sizes, test_mean - test_std, test_mean + test_std, color="#2596be", alpha=0.5)
 
   plt.title(plot_type + " Learning Curve - Score = {:.3f}".format(score))
   plt.xlabel("Training Set Size"), plt.ylabel("Mean Squared Error"), plt.legend(loc="best")

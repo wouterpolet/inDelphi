@@ -66,8 +66,8 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, store=False)
     pearson_denom_y = np.sqrt(np.sum((obs[idx] - y_mean) ** 2))
     pearson_denom = pearson_denom_x * pearson_denom_y
     rsq = (pearson_numerator / pearson_denom) ** 2
-    neg_rsq = rsq * -1
-    nn_loss += neg_rsq
+    nn1_neg_rsq = rsq * -1
+    nn_loss += nn1_neg_rsq
 
     ##
     # Deletion length frequencies, only up to 28
@@ -99,12 +99,12 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, store=False)
     pearson_denom_y = np.sqrt(np.sum((obs2[idx] - y_mean) ** 2))
     pearson_denom = pearson_denom_x * pearson_denom_y
     rsq = (pearson_numerator / pearson_denom) ** 2
-    neg_rsq = rsq * -1
-    nn2_loss += neg_rsq
+    nn2_neg_rsq = rsq * -1
+    nn2_loss += nn2_neg_rsq
     if use_max:
-      LOSS += max(nn_loss, nn2_loss)
+      LOSS += max(nn1_neg_rsq, nn2_neg_rsq)
     else:
-      LOSS += (nn_loss + nn2_loss)
+      LOSS += (nn1_neg_rsq + nn2_neg_rsq)
 
     if not isinstance(mh_phi_total, float):
       mh_phi_total = mh_phi_total._value
@@ -336,9 +336,9 @@ def single_objective_nn2(nn2_params, inp, obs2, del_lens, store=False):
     pearson_denom_y = np.sqrt(np.sum((obs2[idx] - y_mean) ** 2))
     pearson_denom = pearson_denom_x * pearson_denom_y
     rsq = (pearson_numerator / pearson_denom) ** 2
-    neg_rsq = rsq * -1
-    LOSS += neg_rsq
-    nn2_loss += neg_rsq
+    nn2_neg_rsq = rsq * -1
+    LOSS += nn2_neg_rsq
+    nn2_loss += nn2_neg_rsq
 
     if not isinstance(mh_phi_total, float):
       mh_phi_total = mh_phi_total._value
@@ -582,7 +582,8 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
 
   # Training parameters using the max instead of sum
   use_max = True
-  print_and_log("Training model...", log_fn)
+  print_and_log("Training model - max...", log_fn)
+  print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   execution_statistics = []
   out_dir_params = out_dir + 'max/'
   ensure_dir_exists(out_dir_params)
@@ -592,15 +593,16 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   out_dir_params = old_params
 
   # Training parameters using the fixed sum
+  print_and_log(" Iter\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   use_max = False
-  print_and_log("Training model...", log_fn)
+  print_and_log("Training model - fix...", log_fn)
   execution_statistics = []
   out_dir_params = out_dir + 'fix/'
   ensure_dir_exists(out_dir_params)
   trained_params_fix = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
   jrq.save_statistics(out_dir_params, pd.DataFrame(execution_statistics))
   main_objective(trained_params_fix[0], trained_params_fix[1], INP, OBS, OBS2, DEL_LENS, store=True)
-  out_dir_params = old_params
+  # out_dir_params = old_params
 
   return [trained_nn1, trained_nn2], trained_params_max, trained_params_fix
 
