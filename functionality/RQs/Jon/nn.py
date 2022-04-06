@@ -101,8 +101,10 @@ def main_objective(nn_params, nn2_params, inp, obs, obs2, del_lens, store=False)
     rsq = (pearson_numerator / pearson_denom) ** 2
     neg_rsq = rsq * -1
     nn2_loss += neg_rsq
-    LOSS += max(nn_loss, nn2_loss)
-
+    if use_max:
+      LOSS += max(nn_loss, nn2_loss)
+    else:
+      LOSS += (nn_loss + nn2_loss)
 
     if not isinstance(mh_phi_total, float):
       mh_phi_total = mh_phi_total._value
@@ -174,7 +176,7 @@ def train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id):
     te1_rsq_mean = np.mean(te1_rsq)
     te2_rsq_mean = np.mean(te2_rsq)
 
-    out_line = ' %s\t\t| %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (iter, seed, train_loss, tr1_rsq_mean, tr2_rsq_mean, test_loss, te1_rsq_mean, te2_rsq_mean)
+    out_line = ' %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t| %.3f\t\t| %.3f\t\t|' % (iter, train_loss, tr1_rsq_mean, tr2_rsq_mean, test_loss, te1_rsq_mean, te2_rsq_mean)
     print_and_log(out_line, log_fn)
 
     # Jon - Research Question - Start
@@ -496,7 +498,7 @@ def train_parameter(ans, seed, nn_layer_sizes, exec_id, is_nn1=True):
     tr_rsq_mean = np.mean(tr_rsq)
     te_rsq_mean = np.mean(te_rsq)
 
-    out_line = ' %s\t\t| %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t|' % (iter, seed, train_loss, tr_rsq_mean, test_loss, te_rsq_mean)
+    out_line = ' %s\t\t| %.3f\t\t| %.3f\t\t\t| %.3f\t\t\t| %.3f\t|' % (iter, train_loss, tr_rsq_mean, test_loss, te_rsq_mean)
     print_and_log(out_line, log_fn)
 
     # Jon - Research Question - Start
@@ -561,17 +563,17 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   INP_train, INP_test, OBS_train, OBS_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test = ans
   save_train_test_names(NAMES_train, NAMES_test, out_dir)
 
-  print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq\t| Test Loss\t| Test Rsq\t|", log_fn)
+  print_and_log(" Iter\t| Train Loss\t| Train Rsq\t| Test Loss\t| Test Rsq\t|", log_fn)
   nn1_data = INP_train, INP_test, OBS_train, OBS_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
   global trained_nn1
+  global use_max
+  use_max = False
   old_params = out_dir_params
   out_dir_params = out_dir + 'split/'
   ensure_dir_exists(out_dir_params)
   trained_nn1 = train_parameter(nn1_data, seed, nn_layer_sizes, exec_id, is_nn1=True)
   jrq.save_statistics(out_dir_params+'loss_nn1/', pd.DataFrame(execution_statistics))
-  # nn_files = glob.glob(out_dir_params + "*_nn1.pkl")
-  # nn_files.sort(reverse=True)
-  # trained_nn1 = load_pickle(nn_files[0])
+
   execution_statistics = []
   nn2_data = INP_train, INP_test, OBS2_train, OBS2_test, NAMES_train, NAMES_test, DEL_LENS_train, DEL_LENS_test
   trained_nn2 = train_parameter(nn2_data, seed, nn2_layer_sizes, exec_id, is_nn1=False)
@@ -579,9 +581,9 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   main_objective(trained_nn1, trained_nn2, INP, OBS, OBS2, DEL_LENS, store=True)
 
   # Training parameters using the max instead of sum
+  use_max = True
   print_and_log("Training model...", log_fn)
   execution_statistics = []
-  print_and_log(" Iter\t| Seed\t\t\t| Train Loss\t| Train Rsq1\t| Train Rsq2\t| Test Loss\t| Test Rsq1\t| Test Rsq2\t|", log_fn)
   out_dir_params = out_dir + 'max/'
   ensure_dir_exists(out_dir_params)
   trained_params_max = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
@@ -589,5 +591,16 @@ def create_neural_networks(merged, log, out_directory, exec_id, seed):
   main_objective(trained_params_max[0], trained_params_max[1], INP, OBS, OBS2, DEL_LENS, store=True)
   out_dir_params = old_params
 
-  return [trained_nn1, trained_nn2], trained_params_max
+  # Training parameters using the fixed sum
+  use_max = False
+  print_and_log("Training model...", log_fn)
+  execution_statistics = []
+  out_dir_params = out_dir + 'fix/'
+  ensure_dir_exists(out_dir_params)
+  trained_params_fix = train_parameters(ans, seed, nn_layer_sizes, nn2_layer_sizes, exec_id)
+  jrq.save_statistics(out_dir_params, pd.DataFrame(execution_statistics))
+  main_objective(trained_params_fix[0], trained_params_fix[1], INP, OBS, OBS2, DEL_LENS, store=True)
+  out_dir_params = old_params
+
+  return [trained_nn1, trained_nn2], trained_params_max, trained_params_fix
 

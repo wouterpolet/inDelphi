@@ -1,11 +1,4 @@
-import pandas as pd
-import autograd.numpy as np
-from collections import defaultdict
-
 import matplotlib.pyplot as plt
-import seaborn as sns
-
-from scipy.stats import linregress
 
 
 def plot_nn_loss_epoch(loss_values, save_file):
@@ -82,82 +75,20 @@ def plot_nn_loss_epoch(loss_values, save_file):
   return
 
 
-def plot_learning_curve(train_sizes, train_mean, train_std, test_mean, test_std, score):
+def plot_learning_curve(train_sizes, train_mean, train_std, test_mean, test_std, score, plot_type, save_dir):
   plt.plot(train_sizes, train_mean, '--', color="#2596be", label="Training score")
   plt.plot(train_sizes, test_mean, color="#B1003F", label="Cross-validation score")
   plt.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, color="#2596be", alpha=0.5)
   plt.fill_between(train_sizes, test_mean - test_std, test_mean + test_std, color="#B1003F", alpha=0.5)
 
-  plt.title("Learning Curve - Score = {:.3f}".format(score))
+  plt.title(plot_type + " Learning Curve - Score = {:.3f}".format(score))
   plt.xlabel("Training Set Size"), plt.ylabel("Mean Squared Error"), plt.legend(loc="best")
   # plt.annotate("R-Squared = {:.3f}".format(score), (0, 1))
 
   plt.tight_layout()
-  plt.show()
+  if save_dir != '':
+    plt.savefig(save_dir + plot_type + '_knn_curve.png')
+  else:
+    plt.show()
   plt.clf()
   return
-
-
-def plot_mh_score_function(nn_params):
-  data = defaultdict(list)
-  col_names = ['MH Length', 'GC', 'MH Score']
-  # Add normal MH
-  for ns in range(5000):
-    length = np.random.choice(range(1, 28+1))
-    gc = np.random.uniform()
-    features = np.array([length, gc])
-    ms = helper.nn_match_score_function(nn_params, features)[0]
-    data['Length'].append(length)
-    data['GC'].append(gc)
-    data['MH Score'].append(ms)
-  df = pd.DataFrame(data)
-
-  # Plot length vs. match score
-  sns.violinplot(x='Length', y='MH Score', data=df, scale='width')
-  plt.title('Learned Match Function: MH Length vs. MH Score')
-  plt.tight_layout()
-  plt.show()
-
-  # Plot GC vs match score, color by length
-  palette = sns.color_palette('hls', max(df['Length']) + 1)
-  for length in range(1, max(df['Length'])+1):
-    ax = sns.regplot(x='GC', y='MH Score', data=df.loc[df['Length'] == length], color=palette[length-1], label='Length: %s' % (length))
-  plt.legend(loc='best')
-  plt.xlim([0, 1])
-  plt.title('GC vs. MH Score, colored by MH Length')
-  plt.show()
-
-  return
-
-
-def plot_prediction_observation(data):
-  plt.scatter(data['observation'], data['prediction'], c='crimson')
-  p1 = max(max(data['prediction']), max(data['observation']))
-  p2 = min(min(data['prediction']), min(data['observation']))
-  # plt.plot([p1, p2], [p1, p2], 'b-')
-  plt.plot(np.unique(data['observation']), np.poly1d(np.polyfit(data['observation'], data['prediction'], 1))(np.unique(data['observation'])))
-  linreg = linregress(data['observation'], data['prediction'])
-  plt.text(0.6, 0.5, 'R-squared = %0.2f' % linreg.rvalue)
-  # plt.plot(data['observation'], linreg.intercept + linreg.slope * data['observation'], 'r')
-
-  plt.title('Predictions vs Accuracy')
-  plt.xlabel('Observations')
-  plt.ylabel('Prediction')
-  plt.ylim(0, p1)
-  plt.xlim(0, p1+0.05)
-  plt.tight_layout()
-  plt.show()
-  return
-
-
-def plot_student_t_distribution(t_values):
-  plt.hist(t_values, density=True, edgecolor='black', bins=20)
-  plt.show()
-  return
-
-
-def plot_pearson_correlation(pearson_co):
-  # ax = sns.scatterplot(x="FlyAsh", y="Strength", data=pearson_co)
-  # sns.lmplot(x="FlyAsh", y="Strength", data=pearson_co)
-  pass
-
