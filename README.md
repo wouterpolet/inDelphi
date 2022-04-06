@@ -5,8 +5,9 @@ Within this file, we explain how to run our inDelphi adaptation.
 # Table of Contents
 1. [Introduction](#introduction)
 2. [Data Availability](#data)
-3. [Program Parameters](#params)
-4. [Program Execution](#exec)
+3. [Directory Structure](#files)
+4. [Program Parameters](#params)
+5. [Program Execution](#exec)
     1. [Generic Case](#generic)
     2. [Different Execution Cases](#different)
     3. [Pre-Trained Execution Cases](#trained)
@@ -34,13 +35,34 @@ For replication and completeness purposes, a Google Drive folder is provided.
 
 https://drive.google.com/drive/folders/1GNwWVZT6-ESHYKTV5-Eott3x-xlbipTc
 
-This folder contains the files such as the 
-- cut sites.pkl: All the cut sites in the human genes (This must be stored in the following directory: /in/genes/cut sites.pkl)
-- freq_distribution.pkl: The predicted frequency distributions for figure 3f (This must be stored in the following directory: /out/3f_genes/predictions/freq_distribution.pkl)
+This folder contains the files such as the
+- intron: All the human intron sequences  (This must be stored in the following directory: /in/exon_intron/)
+- exon: All the human exon sequences  (This must be stored in the following directory: /in/exon_intron/)
+- freq_distribution.pkl: The predicted frequency distributions for figure 3f (This must be stored in the following directory: /out/``model_name``/predictions/freq_distribution.pkl)
 
 It is important to note that these can be generated using the application but usually take from 2-to 12 hours, depending on size and complexity.
 
 ----
+
+<div id="files"/>
+
+## Directory Structure
+
+Below please find all the folders encapsulated within the submitted package.
+
+- ``author_code``: The original source code used by the inDelphi model with minor amedments (code commenting) for reference purposes
+- ``Flowcharts``: All core flowcharts describing this project (also supplied in the Appendix of the report) 
+- ``functionality``: All subprocesses and important functionality used for the group & individual research
+- ``in``: All input data (including exon/intron, cut sites generated, lib-A sequences and more)
+- ``out``: Files & Folders generated during execution of the inDelphi file (trained models)
+- ``g_genome_predict.txt``: Pseudo code and commenting describing the authors g_genome_predict file
+- ``inDelphi.py``: Main file for our inDelphi execution
+- ``Pipfile``: Pip file describing the required packages
+- ``Pipfile.lock``: Auto-generated during pip installation 
+- ``README.md``: This readme describing important aspects of the program
+- ``SupplementaryData.xlsx``: Supplementary Data obtained from the authors paper
+
+---
 
 <div id="params"/>
 
@@ -140,23 +162,6 @@ To train using the code provided, please use one of the following commands:
 3. ```python inDelphi.py --process 4b``` -> Creates and trains a new model and predicts indel length for 4b (using the subset of mESC and U2OS). Expected Execution Time: 30 min.
 4. ```python inDelphi.py --process both``` -> Creates and trains two new models and predicts frequency distribution and indel length for 3f and 4b. Expected Execution Time: 12 hours.
 5. ```python inDelphi.py --process both --new_targets=True``` -> Creates and trains two new models and predicts frequency distribution and indel length for 3f and 4b. Expected Execution Time: 12 hours.
-
-
-------
-
-Folder Structure
-
-Below is a list of required folder structures:
-
-Predicting (new) data
-
-``/in/exon_intron``:
-- 2 files (exons, introns) - downloaded from drive - Exon Intron Data
-
-Using pre-trained models:
-
-``/out/all_models/predictions``:
-- 1 file (freq_distribution.pkl) - downloaded from drive - Pretrainined model files
 
 
 ---
