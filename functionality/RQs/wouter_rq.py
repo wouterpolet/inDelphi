@@ -80,16 +80,36 @@ def compute_shap(nn_one=False, nn_two=False):
     if nn_two:
         del_feature_one_dim = del_feature.reshape((len(del_feature), 1))
         del_feature_test_one_dim = del_feature_test.reshape((len(del_feature_test), 1))
-        explainer = shap.KernelExplainer(get_network_two(trained_params[1]), shap.sample(del_feature_one_dim, 41250), link="logit")
-        shap_values = explainer.shap_values(shap.sample(del_feature_test_one_dim, 3750), nsamples=100)
+        background = shap.sample(del_feature_one_dim, 41250)
+        test_samples = shap.sample(del_feature_test_one_dim, 3750)
+        explainer = shap.KernelExplainer(get_network_two(trained_params[1]), background, link="logit")
+        shap_values = explainer.shap_values(test_samples)
+        shap_obj = explainer(test_samples)
+        pickle.dump(background, open(out_folder + '/background_nn_2.pkl', 'wb'))
+        pickle.dump(test_samples, open(out_folder + '/test_samples_nn_2.pkl', 'wb'))
         pickle.dump(shap_values, open(out_folder + '/shap_values_nn_2.pkl', 'wb'))
+        pickle.dump(shap_obj, open(out_folder + '/shap_obj_nn_2.pkl', 'wb'))
     if nn_one:
-        explainer = shap.KernelExplainer(get_network_one(trained_params[0]), shap.sample(samples, 41250), link="logit")
-        shap_values = explainer.shap_values(shap.sample(samples_test, 3750), nsamples=100)
+        background = shap.sample(samples, 41250)
+        test_samples = shap.sample(samples_test, 3750)
+        explainer = shap.KernelExplainer(get_network_one(trained_params[0]), background, link="logit")
+        shap_values = explainer.shap_values(test_samples)
+        shap_obj = explainer(test_samples)
         pickle.dump(shap_values, open(out_folder + '/shap_values_nn_1.pkl', 'wb'))
+        pickle.dump(test_samples, open(out_folder + '/test_samples_nn_1.pkl', 'wb'))
+        pickle.dump(shap_values, open(out_folder + '/shap_values_nn_1.pkl', 'wb'))
+        pickle.dump(shap_obj, open(out_folder + '/shap_obj_nn_1.pkl', 'wb'))
 
+
+def plot_shap():
+    shap_values_one = pickle.load(open(out_folder + 'shap_values_nn_1.pkl', 'rb'))
+    shap_values_one = shap_values_one[~np.isnan(shap_values_one)]
+    shap_values_one = shap_values_one.reshape((len(shap_values_one) // 3, 3))
+    shap.summary_plot(shap_values_one, ['MH len', 'GC frac', 'DEL len'])
 
 
 if __name__ == '__main__':
     # train()
     compute_shap(nn_one=True, nn_two=True)
+    # plot_shap()
+
