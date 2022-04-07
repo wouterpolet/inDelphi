@@ -38,7 +38,7 @@ https://drive.google.com/drive/folders/1GNwWVZT6-ESHYKTV5-Eott3x-xlbipTc
 This folder contains the files such as the
 - intron: All the human intron sequences  (This must be stored in the following directory: /in/exon_intron/)
 - exon: All the human exon sequences  (This must be stored in the following directory: /in/exon_intron/)
-- freq_distribution.pkl: The predicted frequency distributions for figure 3f (This must be stored in the following directory: /out/``model_name``/predictions/freq_distribution.pkl)
+- freq_distribution.pkl: The predicted frequency distributions for figure 3f (This must be stored in the following directory: /out/``insert_model_name``/predictions/freq_distribution.pkl)
 
 It is important to note that these can be generated using the application but usually take from 2-to 12 hours, depending on size and complexity.
 
@@ -84,10 +84,10 @@ In case the model_folder is not provided, the program starts training (a) new mo
 
 Some examples of how to use the parameters mentioned below:
 
-- ```python inDelphi.py --process 3f --new_targets True --model_folder 3f_genes```
-- ```python inDelphi.py --process 3f --load_pred True --model_folder 3f_genes```
-- ```python inDelphi.py --process 4b --model_folder 4b_all_samples```
-- ```python inDelphi.py --process both```
+- ``python inDelphi.py --process=3f --new_targets=True --model_folder=3f_trained``
+- ``python inDelphi.py --process=3f --load_pred=True --model_folder=3f_trained``
+- ``python inDelphi.py --process=4b --model_folder=4b_trained``
+- ``python inDelphi.py --process=both``
 
 ----
 
@@ -122,19 +122,19 @@ Below is a brief explanation and examples of the possible different execution ca
 
 ### Pre-Trained Execution Cases
 
-Load the pre-trained model (from the folder called '3f_genes', located under 'out') 
+Load the pre-trained model (from the folder called '3f_trained', located under 'out') 
 
-1. ```python inDelphi.py --process 3f --model_folder 3f_genes --new_targets True ```
-2. ```python inDelphi.py --process 3f --model_folder 3f_genes --load_pred True ```
+1. ``python inDelphi.py --process=3f --model_folder=3f_trained --new_targets=True ``
+2. ``python inDelphi.py --process=3f --model_folder=3f_trained --load_pred=True ``
 
-In the case of (1), predictions are re-calculated, but prior to re-calculating the prediction, the algorithm loads a new set of random targets (1,003,524) and afterward predicts the distribution of those targets.
+In the case of (1), predictions are re-calculated, but prior to re-calculating the prediction, the algorithm loads a new set of random targets (1,003,524) and afterward predicts the distribution of those targets [**Please note, this usually takes a considerable amount of time 8-12 hours depending on processing speeds and storage writing speeds**].
 
 In the case of (2), no recalculation is done. It uses the cached files and data and plots the plot.
 
-Load the pre-trained model (from the folder called '4b_all_samples', located under 'out') 
+Load the pre-trained model (from the folder called '4b_trained', located under 'out') 
 
-1. ```python inDelphi.py --process 4b --model_folder 4b_all_samples```
-2. ```python inDelphi.py --process 4b --model_folder 4b_all_samples --load_pred True ```
+1. ``python inDelphi.py --process=4b --model_folder=4b_trained``
+2. ``python inDelphi.py --process=4b --model_folder=4b_trained --load_pred True ``
 
 In the case of (1), predictions are re-calculated using the cached test datasets (created on model training).
 
@@ -142,8 +142,8 @@ In the case of (2), no recalculation is done. It uses the cached files and data 
 
 Load the pre-trained model (from the folder called 'all_models', located under 'out') 
 
-1. ```python inDelphi.py --process both --model_folder all_models```
-2. ```python inDelphi.py --process both --model_folder all_models --load_pred True```
+1. ``python inDelphi.py --process=both --model_folder=all_models``
+2. ``python inDelphi.py --process=both --model_folder=all_models --load_pred=True``
 
 In the case of (1), predictions are re-calculated using the cached test datasets (created on model training).
 
@@ -157,11 +157,11 @@ In the case of (2), no recalculation is done. It uses the cached files and data 
 
 To train using the code provided, please use one of the following commands:
 
-1. ```python inDelphi.py --process 3f``` -> Creates and trains a new model and predicts frequency distribution for 3f (using the 1M samples already cached). Expected Execution Time: 8 hours.
-2. ```python inDelphi.py --process 3f --new_targets=True``` -> Creates and trains a new model and predicts frequency distribution for 3f (using a new 1M samples & caches them). Expected Execution Time: 10/12 hours.
-3. ```python inDelphi.py --process 4b``` -> Creates and trains a new model and predicts indel length for 4b (using the subset of mESC and U2OS). Expected Execution Time: 30 min.
-4. ```python inDelphi.py --process both``` -> Creates and trains two new models and predicts frequency distribution and indel length for 3f and 4b. Expected Execution Time: 12 hours.
-5. ```python inDelphi.py --process both --new_targets=True``` -> Creates and trains two new models and predicts frequency distribution and indel length for 3f and 4b. Expected Execution Time: 12 hours.
+1. ``python inDelphi.py --process=3f`` -> Creates and trains a new model and predicts frequency distribution for 3f (using the 1M samples already cached). Expected Execution Time: 8 hours.
+2. ``python inDelphi.py --process=3f --new_targets=True`` -> Creates and trains a new model and predicts frequency distribution for 3f (using a new 1M samples & caches them). Expected Execution Time: 10/12 hours.
+3. ``python inDelphi.py --process=4b`` -> Creates and trains a new model and predicts indel length for 4b (using the subset of mESC and U2OS). Expected Execution Time: 30 min.
+4. ``python inDelphi.py --process=both`` -> Creates and trains two new models and predicts frequency distribution and indel length for 3f and 4b. Expected Execution Time: 12 hours.
+5. ``python inDelphi.py --process=both --new_targets=True`` -> Creates and trains two new models and predicts frequency distribution and indel length for 3f and 4b. Expected Execution Time: 12 hours.
 
 
 ---
