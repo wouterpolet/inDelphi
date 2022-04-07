@@ -84,21 +84,17 @@ def compute_shap(nn_one=False, nn_two=False):
         test_samples = shap.sample(del_feature_test_one_dim, 3750)
         explainer = shap.KernelExplainer(get_network_two(trained_params[1]), background, link="logit")
         shap_values = explainer.shap_values(test_samples)
-        shap_obj = explainer(test_samples)
         pickle.dump(background, open(out_folder + '/background_nn_2.pkl', 'wb'))
         pickle.dump(test_samples, open(out_folder + '/test_samples_nn_2.pkl', 'wb'))
         pickle.dump(shap_values, open(out_folder + '/shap_values_nn_2.pkl', 'wb'))
-        pickle.dump(shap_obj, open(out_folder + '/shap_obj_nn_2.pkl', 'wb'))
     if nn_one:
         background = shap.sample(samples, 41250)
         test_samples = shap.sample(samples_test, 3750)
         explainer = shap.KernelExplainer(get_network_one(trained_params[0]), background, link="logit")
         shap_values = explainer.shap_values(test_samples)
-        shap_obj = explainer(test_samples)
         pickle.dump(shap_values, open(out_folder + '/shap_values_nn_1.pkl', 'wb'))
         pickle.dump(test_samples, open(out_folder + '/test_samples_nn_1.pkl', 'wb'))
         pickle.dump(shap_values, open(out_folder + '/shap_values_nn_1.pkl', 'wb'))
-        pickle.dump(shap_obj, open(out_folder + '/shap_obj_nn_1.pkl', 'wb'))
 
 
 def plot_shap():
