@@ -182,7 +182,7 @@ For the purposes of time: ``jon_all_models`` has been provided, where all 3 netw
 
 To re-train max & single-task learning frameworks, please supply a trained model from the generic application (as per the details above) and run the command
 
-Command: ``python C:\Development\CS4260\inDelphi\functionality\RQs\Jon\rq.py --model_folder=jon_all_models``
+Command: ``python [apllication path]\functionality\RQs\Jon\rq.py --model_folder=jon_all_models``
 
 **Wounter:**
 
