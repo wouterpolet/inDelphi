@@ -11,6 +11,7 @@ sklearn = "*"
 seaborn = "*"
 scipy = "*"
 openpyxl = "*"
+shap = "*"
 
 [dev-packages]
 
