@@ -177,7 +177,7 @@ Below please find the commands to execute our research questions and obtain the 
 https://drive.google.com/file/d/1Q4VSohvvoXIjuFyr-Jm59IfTALu2Hnpf/view?usp=sharing
 https://drive.google.com/file/d/1Q2PcOw9uH3DCPbGZj76ovNFx0eeDFL0V/view?usp=sharing'
 
-2. Run the file `franz_rq.py` under functionality/RQs with following command to generate Figure 7 of the report. This process will take about 20 minutes.
+2. Run the file `franz_rq.py` under functionality/RQs with following command to generate Figure 7 of the report. This process will take about 15 minutes.
 
 Command: ``python [application path]\functionality\RQs\franz_rq.py --process=full``
 
