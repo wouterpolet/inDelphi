@@ -184,7 +184,9 @@ To re-train max & single-task learning frameworks, please supply a trained model
 
 Command: ``python [application path]\functionality\RQs\Jon\rq.py --model_folder=jon_all_models``
 
-**Wounter:**
+**Wouter:**
+Running the file called `wouter_rq.py` with part of the function calls uncommented at the bottom of the file will run the training and shapley computations.
+The only thing needed is the `dataset.pkl` in the `in` folder.
 
 
 
