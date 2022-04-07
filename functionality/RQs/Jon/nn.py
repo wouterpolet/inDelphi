@@ -1,5 +1,4 @@
 import datetime
-import glob
 
 import pandas as pd
 from autograd import grad
@@ -11,7 +10,6 @@ from sklearn.model_selection import train_test_split
 from functionality.neural_networks import parse_data
 from functionality.author_helper import nn_match_score_function, init_random_params, rsq, print_and_log, alphabetize, save_parameters, exponential_decay, save_train_test_names, ensure_dir_exists, save_parameter
 import functionality.RQs.Jon.helper as jrq
-from functionality.helper import load_pickle
 
 """
 Python file was not converted to class because of callback function and nested functions

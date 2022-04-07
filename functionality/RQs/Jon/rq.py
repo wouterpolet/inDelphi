@@ -42,19 +42,12 @@ def learning_curves(data_nm, total_values, save_dir, plot_type):
                                                           n_jobs=-1, train_sizes=np.linspace(0.01, 1.0, 100))
 
   knn.fit(X, y)
-  # y_pred = knn.predict(X)
-  # print('R-Squared: ' + str(r2_score(y, y_pred)))
-  # print('KNN Score: ' + str())
   train_mean = -1 * np.mean(train_scores, axis=1)
   train_std = np.std(train_scores, axis=1)
 
   test_mean = -1 * np.mean(test_scores, axis=1)
   test_std = np.std(test_scores, axis=1)
   plt.plot_learning_curve(train_sizes, train_mean, train_std, test_mean, test_std, knn.score(X, y), plot_type, save_dir)
-  # train_scores_mean = -train_scores.mean(axis=1)
-  # validation_scores_mean = -test_scores.mean(axis=1)
-  # plot_learning_curve(train_sizes, train_scores_mean, validation_scores_mean)
-
 
 
 def load_and_plot_model_loss(model_folder, all_data, figure_dir, plot_type, new_model=False):
