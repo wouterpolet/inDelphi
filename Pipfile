@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 numpy = "*"
 autograd = "*"
-matplotlib = "*"
+matplotlib = "==3.4.3"
 sklearn = "*"
 seaborn = "*"
 scipy = "*"

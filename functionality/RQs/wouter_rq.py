@@ -106,13 +106,19 @@ def compute_shap(nn_one=False, nn_two=False):
 
 def plot_shap():
     shap_values_one = pickle.load(open(out_folder + 'shap_values_nn_1.pkl', 'rb'))
-    shap_values_one = shap_values_one[~np.isnan(shap_values_one)]
-    shap_values_one = shap_values_one.reshape((len(shap_values_one) // 3, 3))
-    shap.summary_plot(shap_values_one, ['MH len', 'GC frac', 'DEL len'])
+    shap_values_one.feature_names = ['MH len', 'GC frac', 'DEL len']
+    shap.plots.beeswarm(shap_values_one)
+    shap.plots.scatter(shap_values_one[:, 'MH len'], color=shap_values_one)
+    shap.plots.scatter(shap_values_one[:, 'GC frac'], color=shap_values_one)
+    shap.plots.scatter(shap_values_one[:, 'DEL len'], color=shap_values_one)
+    shap.plots.bar(shap_values_one)
+    shap_values_two = pickle.load(open(out_folder + 'shap_values_nn_2.pkl', 'rb'))
+    shap_values_two.feature_names = ['DEL len']
+    shap.plots.beeswarm(shap_values_two)
 
 
 if __name__ == '__main__':
     # train()
-    compute_shap(nn_one=True, nn_two=True)
-    # plot_shap()
+    # compute_shap(nn_one=True, nn_two=True)
+    plot_shap()
 
