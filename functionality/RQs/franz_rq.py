@@ -1,4 +1,9 @@
 import os
+import sys
+
+root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(root_folder)
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,16 +11,22 @@ from pathlib import Path
 import pickle
 import collections                # for summing up dictionaries
 import functionality.helper as helper
-import sys
+import argparse
 
-root_folder = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-sys.path.append(root_folder)
 
 
 
 '''
 Functions
 '''
+parser = argparse.ArgumentParser(description='Execution Details')
+parser.add_argument('--process', dest='process', choices=['test', 'full'], type=str,
+                    help='Test - Small fraction of gRNAs; Full - Full distribution')
+args = parser.parse_args()
+if args.process:
+    model = args.process
+else:
+    raise Exception("Please specify --process")
 
 
 # Reading files: Open pickle files
@@ -239,8 +250,8 @@ mESC_merged_data = mESC_merged_data.reset_index()
 
 # Pertubed dataset (mESC)
 rq_franz = input_dir + 'franz/'
-pertubed_train_counts, pertubed_train_del_features = helper.read_data(rq_franz + 'franz_data_pertubed_train.pkl.pkl')
-pertubed_test_counts, pertubed_test_del_features = helper.read_data(rq_franz + 'franz_data_pertubed_test.pkl.pkl')
+pertubed_train_counts, pertubed_train_del_features = helper.read_data(rq_franz + 'franz_data_pertubed_train.pkl')
+pertubed_test_counts, pertubed_test_del_features = helper.read_data(rq_franz + 'franz_data_pertubed_test.pkl')
 
 # mESC pertubed dfs
 mESC_perturbed_train_merged_data = pd.concat([pertubed_train_counts, pertubed_train_del_features], axis=1)
@@ -275,7 +286,7 @@ for gRNA in range(test_gRNAs_desired_count):
 KO_mESC_deletions_for_test_gRNAs = KO_mESC_deletions_for_all_gRNAs[ KO_mESC_deletions_for_all_gRNAs['Sample_Name'].isin(KO_test_gRNAs_desired) ]
 
 #--- CHANGE THIS FOR DESIRED OUTPUT!
-model = 'test' # 'test' or 'full'
+# model = 'test' # 'test' or 'full'
 
 if model == 'test': # Only the first (test number) of gRNAs considered
   # wt mESC
@@ -346,3 +357,5 @@ KO_mESC_non_full_MH_and_half_of_full_MH_distrib, KO_mESC_MH_less_and_half_of_ful
 # histogram(KO_mESC_MH_less_and_half_of_full_MH_distrib, ylabel='Relative frequency', ylim=[0,0.11], xscale=[0,0,1,1], title='KO mESC avg gRNA MH-less + 50% full MH dels')
 
 four_histograms(mESC_non_full_MH_and_half_of_full_MH_distrib, mESC_MH_less_and_half_of_full_MH_distrib, KO_mESC_non_full_MH_and_half_of_full_MH_distrib, KO_mESC_MH_less_and_half_of_full_MH_distrib)
+
+
