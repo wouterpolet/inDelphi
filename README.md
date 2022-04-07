@@ -173,6 +173,8 @@ To train using the code provided, please use one of the following commands:
 Below please find the commands to execute our research questions and obtain the resutls described in the report.
 
 **Franz:**
+https://drive.google.com/file/d/1Q4VSohvvoXIjuFyr-Jm59IfTALu2Hnpf/view?usp=sharing
+https://drive.google.com/file/d/1Q2PcOw9uH3DCPbGZj76ovNFx0eeDFL0V/view?usp=sharing
 
 **Jonathan:**
 
