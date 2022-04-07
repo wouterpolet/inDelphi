@@ -173,8 +173,12 @@ To train using the code provided, please use one of the following commands:
 Below please find the commands to execute our research questions and obtain the resutls described in the report.
 
 **Franz:**
+1. Download the two files (NHEJ-deficient mESC deletions) into in/franz:
 https://drive.google.com/file/d/1Q4VSohvvoXIjuFyr-Jm59IfTALu2Hnpf/view?usp=sharing
-https://drive.google.com/file/d/1Q2PcOw9uH3DCPbGZj76ovNFx0eeDFL0V/view?usp=sharing
+https://drive.google.com/file/d/1Q2PcOw9uH3DCPbGZj76ovNFx0eeDFL0V/view?usp=sharing'
+
+2. Run the file `franz_rq.py` under functionality/RQs with following command
+Command: ``python [application path]\functionality\RQs\franz_rq.py --process=full``
 
 **Jonathan:**
 
