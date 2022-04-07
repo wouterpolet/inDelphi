@@ -1,4 +1,6 @@
 import datetime
+import pickle
+
 import pandas as pd
 from autograd import grad
 from autograd.misc import flatten
@@ -380,5 +382,9 @@ def create_neural_networks(merged, log, out_directory, exec_id):
   # Jon - Research Question - Start
   jrq.save_statistics(out_dir, pd.DataFrame(execution_statistics))
   # Jon - Research Question - End
+
+  # Wouter - Research Question - Start
+  pickle.dump(ans, open(out_dir + '/ans.pkl', 'wb'))
+  # Wouter - Research Question - End
   return trained_params
 
